@@ -1,0 +1,11 @@
+# Dependencies and build output
+node_modules/
+dist/
+.env
+__pycache__/
+*.pyc
+
+# Editor and OS files
+.DS_Store
+.vscode/
+.idea/
