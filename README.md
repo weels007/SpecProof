@@ -56,13 +56,16 @@ gltest tests/integration -v --network studionet
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs three jobs on pushes, pull requests and manual dispatch:
+`.github/workflows/ci.yml` runs on pushes to `main`, pull requests and manual dispatch:
 
 - **Contract lint** — `genvm-lint check` for every contract in `contracts/`.
 - **Contract direct-mode tests** — `pytest tests/direct -v`.
 - **Frontend typecheck and build** — `npm run typecheck` and `npm run build`.
 
-The workflow needs the repository to be on GitHub; it does not run until then.
+The suite in `tests/direct` covers input validation, a fully passing and a partially failing
+evaluation, unusable evaluator output, validator agreement and disagreement, and the
+one-evaluation guard. GitHub Actions is the only place this repository runs those checks, so
+`main` is kept green by the workflow rather than by a local run.
 
 Before deploying, test the contract against the current GenLayer runtime and refine its
 rubric/input limits, page rendering behavior, error handling, and adversarial-page defenses. A
