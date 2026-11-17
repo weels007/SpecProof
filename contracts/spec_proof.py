@@ -29,20 +29,20 @@ class SpecProof(gl.Contract):
     @gl.public.write
     def evaluate(self) -> None:
         if self.evaluated:
-            raise gl.UserError("This evaluation is already recorded")
+            raise gl.vm.UserError("This evaluation is already recorded")
 
         site_url = self.site_url
         criteria = self._criteria()
 
         if not site_url.startswith(("https://", "http://")):
-            raise gl.UserError("A public HTTP or HTTPS URL is required")
+            raise gl.vm.UserError("A public HTTP or HTTPS URL is required")
         if not 1 <= len(criteria) <= MAX_CRITERIA:
-            raise gl.UserError("Provide between 1 and 6 acceptance criteria")
+            raise gl.vm.UserError("Provide between 1 and 6 acceptance criteria")
 
         def read_decision() -> dict:
             page_html = gl.nondet.web.render(site_url, mode="html")
             if not page_html:
-                raise gl.UserError("The website returned no renderable HTML")
+                raise gl.vm.UserError("The website returned no renderable HTML")
 
             numbered_criteria = "\n".join(
                 f"C{index + 1}: {criterion}"
@@ -104,7 +104,7 @@ class SpecProof(gl.Contract):
         decision = gl.vm.run_nondet_unsafe(read_decision, validator_fn)
 
         if not valid_decision(decision):
-            raise gl.UserError("The evaluator returned an unusable result")
+            raise gl.vm.UserError("The evaluator returned an unusable result")
 
         checks = [
             {"id": check["id"], "passed": check["passed"]}
