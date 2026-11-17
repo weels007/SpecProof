@@ -15,11 +15,13 @@ type ProviderHost = {
 export function getInjectedProvider(): WalletProvider | null {
   const host = window as unknown as ProviderHost;
   const injected = host.ethereum;
-  if (!injected) return null;
+  if (!injected || typeof injected.request !== 'function') return null;
 
   const providers = injected.providers;
   if (Array.isArray(providers) && providers.length > 0) {
-    return providers.find((provider) => provider.isMetaMask) ?? providers[0];
+    const usable = providers.filter((provider) => typeof provider.request === 'function');
+    if (usable.length === 0) return null;
+    return usable.find((provider) => provider.isMetaMask) ?? usable[0];
   }
 
   return injected;

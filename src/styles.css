@@ -509,3 +509,15 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
   .input-with-prefix { padding-left: 10px; }
   .eval-head h1 { font-size: 24px; }
 }
+
+
+/* Layout corrections that belong with the routed pages. */
+.workspace-label { margin-top: 18px; }
+.topbar-actions .button-secondary { white-space: nowrap; }
+
+@media (max-width: 600px) {
+  .topbar-actions .button-secondary { display: none; }
+  .lp-actions .button-lg, .hiw-cta .button-lg { width: 100%; }
+  .lp-cta-actions { width: 100%; }
+  .lp-cta-actions .button-lg { flex: 1 1 auto; }
+}
