@@ -1,4 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { ToastTone } from '../hooks/useToast';
+import { copyText } from '../lib/clipboard';
 import { pad2 } from '../lib/format';
 import type { EvaluationCase } from '../types';
 
@@ -7,20 +9,21 @@ const SAMPLE_NOTE = 'Illustrative check only; no page was fetched.';
 type CaseDetailDialogProps = {
   item: EvaluationCase | null;
   onClose: () => void;
+  onDelete: (id: string) => void;
+  onNotify: (message: string, tone: ToastTone) => void;
 };
 
-export function CaseDetailDialog({ item, onClose }: CaseDetailDialogProps) {
+export function CaseDetailDialog({ item, onClose, onDelete, onNotify }: CaseDetailDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const pressedOnBackdrop = useRef(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
 
-    if (item && !dialog.open) {
-      dialog.showModal();
-    } else if (!item && dialog.open) {
-      dialog.close();
-    }
+    if (item && !dialog.open) dialog.showModal();
+    else if (!item && dialog.open) dialog.close();
   }, [item]);
 
   useEffect(() => {
@@ -31,6 +34,19 @@ export function CaseDetailDialog({ item, onClose }: CaseDetailDialogProps) {
     dialog.addEventListener('close', handleClose);
     return () => dialog.removeEventListener('close', handleClose);
   }, [onClose]);
+
+  useEffect(() => {
+    setConfirmingDelete(false);
+  }, [item?.id]);
+
+  async function handleCopy() {
+    if (!item) return;
+    const copied = await copyText(item.url);
+    onNotify(
+      copied ? 'Website URL copied.' : 'Could not copy the URL. Copy it manually instead.',
+      copied ? 'success' : 'error',
+    );
+  }
 
   const isDraft = item?.status === 'draft';
   const criteria = item?.criteria ?? [];
@@ -43,8 +59,12 @@ export function CaseDetailDialog({ item, onClose }: CaseDetailDialogProps) {
       id="detail-dialog"
       ref={dialogRef}
       aria-labelledby="detail-title"
+      onPointerDown={(event) => {
+        pressedOnBackdrop.current = event.target === dialogRef.current;
+      }}
       onClick={(event) => {
-        if (event.target === dialogRef.current) onClose();
+        if (pressedOnBackdrop.current && event.target === dialogRef.current) onClose();
+        pressedOnBackdrop.current = false;
       }}
     >
       <div className="modal-card detail-card">
@@ -60,7 +80,12 @@ export function CaseDetailDialog({ item, onClose }: CaseDetailDialogProps) {
         {item ? (
           <div id="detail-content">
             <h2 id="detail-title">{item.title}</h2>
-            <div className="detail-url">{item.url}</div>
+            <div className="detail-url-row">
+              <span className="detail-url">{item.url}</span>
+              <button className="detail-copy" type="button" onClick={() => void handleCopy()}>
+                Copy URL
+              </button>
+            </div>
 
             <div className="detail-summary">
               <span>
@@ -76,9 +101,7 @@ export function CaseDetailDialog({ item, onClose }: CaseDetailDialogProps) {
               </span>
             </div>
 
-            <div className="detail-section-title">
-              ACCEPTANCE CHECKS · {pad2(criteria.length)}
-            </div>
+            <div className="detail-section-title">ACCEPTANCE CHECKS · {pad2(criteria.length)}</div>
 
             {criteria.map((criterion, index) => {
               const check = checks[index];
@@ -91,9 +114,7 @@ export function CaseDetailDialog({ item, onClose }: CaseDetailDialogProps) {
                   <span>
                     <strong>{criterion}</strong>
                     <small>
-                      {isDraft
-                        ? 'Pending a real GenLayer evaluation.'
-                        : check?.note ?? SAMPLE_NOTE}
+                      {isDraft ? 'Pending a real GenLayer evaluation.' : check?.note ?? SAMPLE_NOTE}
                     </small>
                   </span>
                 </div>
@@ -105,6 +126,38 @@ export function CaseDetailDialog({ item, onClose }: CaseDetailDialogProps) {
                 ? 'This is a draft only. The prototype does not fetch this URL, run an LLM, connect a wallet, or submit a transaction.'
                 : 'This is illustrative UI data to demonstrate the result format. It is not a live inspection, validator decision, or on-chain result.'}
             </div>
+
+            {isDraft ? (
+              confirmingDelete ? (
+                <div className="detail-confirm" role="alertdialog" aria-label="Delete draft">
+                  <p>Delete this draft? It only exists in this browser.</p>
+                  <div className="detail-confirm-actions">
+                    <button
+                      className="button button-quiet"
+                      type="button"
+                      onClick={() => setConfirmingDelete(false)}
+                    >
+                      Keep draft
+                    </button>
+                    <button
+                      className="button button-danger"
+                      type="button"
+                      onClick={() => onDelete(item.id)}
+                    >
+                      Delete draft
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  className="button button-quiet detail-delete"
+                  type="button"
+                  onClick={() => setConfirmingDelete(true)}
+                >
+                  Delete draft
+                </button>
+              )
+            ) : null}
           </div>
         ) : null}
       </div>

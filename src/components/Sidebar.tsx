@@ -1,23 +1,28 @@
-export type NavKey = 'overview' | 'evaluations';
+import type { WalletState } from '../hooks/useWallet';
+import { pad2 } from '../lib/format';
+import { routeHref } from '../lib/router';
+import type { RouteName } from '../lib/router';
+import { walletSubtitle, walletTitle } from '../lib/wallet';
 
 type SidebarProps = {
-  activeNav: NavKey;
+  route: RouteName;
+  wallet: WalletState;
   draftCount: number;
-  onNavigate: (nav: NavKey) => void;
+  onOpenWallet: () => void;
+  onNewCase: () => void;
 };
 
-export function Sidebar({ activeNav, draftCount, onNavigate }: SidebarProps) {
+function walletDotClass(wallet: WalletState): string {
+  if (wallet.isDemo) return 'wallet-dot wallet-dot--demo';
+  if (wallet.status === 'connected') return 'wallet-dot wallet-dot--ok';
+  if (wallet.status === 'connecting') return 'wallet-dot wallet-dot--busy';
+  return 'wallet-dot';
+}
+
+export function Sidebar({ route, wallet, draftCount, onOpenWallet, onNewCase }: SidebarProps) {
   return (
-    <aside className="sidebar" aria-label="Main navigation">
-      <a
-        className="brand"
-        href="#overview"
-        aria-label="SpecProof home"
-        onClick={(event) => {
-          event.preventDefault();
-          onNavigate('overview');
-        }}
-      >
+    <aside className="sidebar" aria-label="Workspace navigation">
+      <a className="brand" href={routeHref('landing')} aria-label="SpecProof home">
         <span className="brand-mark" aria-hidden="true">
           <span />
         </span>
@@ -26,15 +31,15 @@ export function Sidebar({ activeNav, draftCount, onNavigate }: SidebarProps) {
         </span>
       </a>
 
+      <button className="sidebar-new" type="button" onClick={onNewCase}>
+        <span aria-hidden="true">+</span> New evaluation
+      </button>
+
       <div className="workspace-label">WORKSPACE</div>
       <nav className="primary-nav">
         <a
-          className={activeNav === 'overview' ? 'nav-link active' : 'nav-link'}
-          href="#overview"
-          onClick={(event) => {
-            event.preventDefault();
-            onNavigate('overview');
-          }}
+          className={route === 'workspace' ? 'nav-link active' : 'nav-link'}
+          href={routeHref('workspace')}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <rect x="3.5" y="3.5" width="7" height="7" rx="1.5" />
@@ -45,34 +50,45 @@ export function Sidebar({ activeNav, draftCount, onNavigate }: SidebarProps) {
           Overview
         </a>
         <a
-          className={activeNav === 'evaluations' ? 'nav-link active' : 'nav-link'}
-          href="#evaluations"
-          onClick={(event) => {
-            event.preventDefault();
-            onNavigate('evaluations');
-          }}
+          className={route === 'evaluations' ? 'nav-link active' : 'nav-link'}
+          href={routeHref('evaluations')}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M7 3.75h7l4.25 4.5v12H7a2 2 0 0 1-2-2v-12a2.5 2.5 0 0 1 2-2.5Z" />
             <path d="M14 4v5h4M9 13h6M9 16.5h6" />
           </svg>
-          Evaluations <span className="nav-count">{draftCount}</span>
+          Evaluations <span className="nav-count">{pad2(draftCount)}</span>
+        </a>
+        <a
+          className={route === 'how-it-works' ? 'nav-link active' : 'nav-link'}
+          href={routeHref('how-it-works')}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.5" />
+            <path d="M12 8h.01M11 12h1v4h1" />
+          </svg>
+          How it works
         </a>
       </nav>
 
       <div className="sidebar-bottom">
-        <div className="network-card">
+        <button
+          className="network-card wallet-card"
+          type="button"
+          onClick={onOpenWallet}
+          aria-label="Wallet"
+        >
           <span className="network-icon">
-            <span className="pulse-dot" />
+            <i className={walletDotClass(wallet)} />
           </span>
           <div>
-            <strong>Bradbury testnet</strong>
-            <small>Wallet not connected</small>
+            <strong>{walletTitle(wallet)}</strong>
+            <small>{walletSubtitle(wallet)}</small>
           </div>
           <span className="network-chevron" aria-hidden="true">
             ⌄
           </span>
-        </div>
+        </button>
         <a
           className="sidebar-docs"
           href="https://docs.genlayer.com/developers/intelligent-contracts/introduction"

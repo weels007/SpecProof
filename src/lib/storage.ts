@@ -1,6 +1,6 @@
 import type { EvaluationCase } from '../types';
 
-const STORAGE_KEY = 'specproof-drafts-v1';
+export const DRAFTS_STORAGE_KEY = 'specproof-drafts-v1';
 
 function isDraft(value: unknown): value is EvaluationCase {
   if (typeof value !== 'object' || value === null) return false;
@@ -16,7 +16,7 @@ function isDraft(value: unknown): value is EvaluationCase {
 
 export function readDrafts(): EvaluationCase[] {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(DRAFTS_STORAGE_KEY);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -28,7 +28,7 @@ export function readDrafts(): EvaluationCase[] {
 
 export function writeDrafts(drafts: EvaluationCase[]): boolean {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(drafts));
+    window.localStorage.setItem(DRAFTS_STORAGE_KEY, JSON.stringify(drafts));
     return true;
   } catch {
     return false;

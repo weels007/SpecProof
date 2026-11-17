@@ -15,18 +15,31 @@ npm run typecheck  # tsc --noEmit
 npm run build      # typecheck + production build into dist/
 ```
 
+Routes are hash based, so every page also survives a direct load on a static host:
+
+- `#/` — landing page.
+- `#/workspace` — workspace overview (recent cases, metrics, decision path).
+- `#/evaluations` — every case, with tabs and search.
+- `#/how-it-works` — the method, a rubric example, the stored result, and the limits.
+
 Source layout:
 
-- `src/App.tsx` — workspace state (drafts, tabs, dialogs, toast).
-- `src/components/` — sidebar, hero, metrics, case table, side panels, dialogs, toast.
-- `src/hooks/` — draft persistence and toast timers.
-- `src/lib/` — sample data, `localStorage` storage, formatting helpers.
-- `src/styles.css` — the design system and layout.
+- `src/pages/` — one component per route.
+- `src/components/` — app shell, marketing shell, wallet dialog, case table, dialogs, toast.
+- `src/hooks/` — drafts (`localStorage`), typed toasts, and the wallet state machine.
+- `src/lib/` — hash router, wallet helpers, clipboard, sample data, storage, formatting.
+- `src/styles.css` — the design system, landing page, and workspace layout.
+
+Wallet handling keeps the wallet from popping up repeatedly: the app reads authorized accounts
+silently on load, sends one `eth_requestAccounts` per click behind a guard, reports a pending
+wallet request (`-32002`) instead of retrying it, and offers a clearly labelled demo session when
+no injected wallet exists (as in a preview webview). Errors are shown inline in the dialog and
+successes are confirmed with a toast.
 
 The dashboard is deliberately honest about its current scope:
 
 - The two evaluation rows are illustrative sample data; they are not live website checks.
-- Creating a case saves a draft in this browser's `localStorage` only.
+- Creating a case saves a draft in this browser's `localStorage` only; drafts can be deleted.
 - The prototype does not fetch submitted URLs, connect a wallet, call GenLayer RPC, or send a
   transaction.
 - `contracts/spec_proof.py` is a contract draft, not a deployed or verified contract.
