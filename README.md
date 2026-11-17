@@ -49,8 +49,24 @@ The dashboard is deliberately honest about its current scope:
 `contracts/spec_proof.py` stores a public URL and a newline-separated rubric, renders the page
 inside a non-deterministic block, asks for one boolean decision per criterion, and has validators
 independently repeat the evaluation. Validators compare the stable decision fields rather than
-free-form explanations. The stored result is deliberately small, and a case can only be
-evaluated once so the recorded outcome stays a record.
+free-form explanations.
+
+Security properties worth knowing before any deployment:
+
+- **Creator-only evaluation.** The deployer is stored as an `Address`; anyone else calling
+  `evaluate` reverts, so a third party cannot burn a case's one recorded result.
+- **One outcome, retry only on failure.** A successful evaluation sets `evaluated` and every later
+  call reverts. A failed or inconclusive evaluation writes nothing, so the creator can retry.
+- **No unverified free text in the result.** Only criterion ids and booleans are compared and
+  stored; there is no leader-supplied reasoning, score or percentage that later logic relies on.
+- **Bounded input.** The URL must be HTTP(S) on a public host (no credentials, localhost, private,
+  link-local or shared ranges), and the rubric is capped at 6 criteria, 180 characters each and
+  1200 in total, with duplicates rejected.
+- **Normalized rubric.** Criteria are whitespace-collapsed and stored once, so the text the
+  evaluator sees is exactly the text recorded in the contract.
+- **Grounding and injection handling.** The prompt contains the captured page itself, wrapped in
+  `<<<PAGE>>>` markers and explicitly treated as untrusted data; the output must match the expected
+  ids, order and boolean types or the transaction reverts.
 
 Tooling (Python 3.12+):
 

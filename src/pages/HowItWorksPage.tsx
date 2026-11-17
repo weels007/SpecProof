@@ -27,6 +27,10 @@ const LIMITS = [
     body: 'Public evidence only. If a validator cannot load the page, the evaluation fails instead of inventing a result.',
   },
   {
+    title: 'Private addresses',
+    body: 'The contract refuses credentials, local names, loopback, private and link-local addresses before any page is fetched.',
+  },
+  {
     title: 'Scripted pages',
     body: 'Rendering helps with JavaScript-heavy sites, but content built after several seconds may still be missing from the captured HTML.',
   },

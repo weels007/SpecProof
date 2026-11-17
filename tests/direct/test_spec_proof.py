@@ -4,13 +4,12 @@ import json
 
 CONTRACT = "contracts/spec_proof.py"
 SITE_URL = "https://launch.example"
-CRITERIA = "\n".join(
-    [
-        "A clear page heading is visible without scrolling",
-        "A contact link is available in the page navigation",
-        "The primary action is clearly labelled",
-    ]
-)
+CRITERIA_LIST = [
+    "A clear page heading is visible without scrolling",
+    "A contact link is available in the page navigation",
+    "The primary action is clearly labelled",
+]
+CRITERIA = "\n".join(CRITERIA_LIST)
 PAGE_HTML = (
     "<html><body><h1>Northstar launch</h1>"
     '<nav><a href="/contact">Contact</a></nav>'
@@ -44,15 +43,54 @@ def test_deploys_with_spec_recorded(direct_vm, direct_deploy):
     spec = json.loads(contract.get_spec())
 
     assert spec["site_url"] == SITE_URL
-    assert spec["criteria"] == CRITERIA
+    assert spec["criteria"] == CRITERIA_LIST
+    assert spec["criteria_text"] == CRITERIA
     assert spec["evaluated"] is False
+    assert spec["creator"].startswith("0x")
+    assert len(spec["creator"]) == 42
     assert json.loads(contract.get_result()) == {}
+
+
+def test_normalizes_whitespace_in_criteria(direct_vm, direct_deploy):
+    contract = direct_deploy(
+        CONTRACT,
+        SITE_URL,
+        "  A clear   page heading is visible without scrolling  \n\nB contact   link is available",
+    )
+
+    spec = json.loads(contract.get_spec())
+
+    assert spec["criteria"] == [
+        "A clear page heading is visible without scrolling",
+        "B contact link is available",
+    ]
 
 
 def test_rejects_non_http_url(direct_vm, direct_deploy):
     contract = direct_deploy(CONTRACT, "ftp://launch.example", CRITERIA)
 
     with direct_vm.expect_revert("A public HTTP or HTTPS URL is required"):
+        contract.evaluate()
+
+
+def test_rejects_private_hosts(direct_vm, direct_deploy):
+    contract = direct_deploy(CONTRACT, "http://127.0.0.1:8080/admin", CRITERIA)
+
+    with direct_vm.expect_revert("must point at a public host"):
+        contract.evaluate()
+
+
+def test_rejects_credentials_in_url(direct_vm, direct_deploy):
+    contract = direct_deploy(CONTRACT, "https://user:secret@launch.example", CRITERIA)
+
+    with direct_vm.expect_revert("cannot contain credentials"):
+        contract.evaluate()
+
+
+def test_rejects_urls_with_whitespace(direct_vm, direct_deploy):
+    contract = direct_deploy(CONTRACT, "https://launch.example/a b", CRITERIA)
+
+    with direct_vm.expect_revert("cannot contain spaces"):
         contract.evaluate()
 
 
@@ -69,6 +107,32 @@ def test_rejects_empty_criteria(direct_vm, direct_deploy):
 
     with direct_vm.expect_revert("Provide between 1 and 6 acceptance criteria"):
         contract.evaluate()
+
+
+def test_rejects_overlong_criterion(direct_vm, direct_deploy):
+    contract = direct_deploy(CONTRACT, SITE_URL, "A" * 181)
+
+    with direct_vm.expect_revert("at most 180 characters"):
+        contract.evaluate()
+
+
+def test_rejects_duplicate_criteria(direct_vm, direct_deploy):
+    repeated = "A clear page heading is visible without scrolling"
+    contract = direct_deploy(CONTRACT, SITE_URL, f"{repeated}\n{repeated}")
+
+    with direct_vm.expect_revert("must differ from each other"):
+        contract.evaluate()
+
+
+def test_only_creator_can_evaluate(direct_vm, direct_deploy, direct_bob):
+    contract = direct_deploy(CONTRACT, SITE_URL, CRITERIA)
+    mock_evaluation(direct_vm, True, True, True)
+
+    direct_vm.sender = direct_bob
+    with direct_vm.expect_revert("Only the case creator can record this evaluation"):
+        contract.evaluate()
+
+    assert json.loads(contract.get_spec())["evaluated"] is False
 
 
 def test_records_all_passing_checks(direct_vm, direct_deploy):

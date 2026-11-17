@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent, KeyboardEvent } from 'react';
 import { pad2 } from '../lib/format';
+import { publicHostProblem } from '../lib/hostCheck';
 import type { NewCaseInput } from '../types';
 
 const DEFAULT_CRITERION = 'A clear page heading is visible without scrolling';
@@ -115,6 +116,12 @@ export function NewCaseDialog({ open, onClose, onCreate }: NewCaseDialogProps) {
 
     if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
       setError('Use a public HTTP or HTTPS website URL.');
+      return;
+    }
+
+    const hostProblem = publicHostProblem(parsedUrl);
+    if (hostProblem) {
+      setError(hostProblem);
       return;
     }
 
