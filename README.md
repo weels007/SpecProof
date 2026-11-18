@@ -89,6 +89,9 @@ Routes are hash based, so deep links survive static hosting:
 - **Evaluate** appears only for the wallet that opened the case and only before a result exists. The
   dialog waits for the receipt, then re-reads `get_result`.
 - **Reads** (`list_cases`, `get_case`, `get_result`) need no wallet, so everyone sees the same list.
+- **Explain** — the case dialog shows the four steps the contract runs (page render, one LLM pass
+  per criterion, validator agreement, one deterministic write) and says plainly that only ids and
+  booleans are stored, never the model's prose.
 - **Audit** — every case links to the registry contract and its evaluation transaction in the Studio
   explorer, with a refresh control.
 

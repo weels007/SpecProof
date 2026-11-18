@@ -240,6 +240,63 @@ export function CaseDetailDialog({
               </p>
             ) : null}
 
+            {isOnChain ? (
+              <div className="consensus-box">
+                <div className="consensus-head">
+                  <span>AI CONSENSUS</span>
+                  <span className={evaluated ? 'consensus-state done' : 'consensus-state'}>
+                    {evaluated ? 'Agreed and recorded' : 'Not run yet'}
+                  </span>
+                </div>
+                <ol className="consensus-steps">
+                  <li>
+                    <span className="consensus-step-index">01</span>
+                    <div>
+                      <strong>The contract reads the page itself</strong>
+                      <small>
+                        gl.nondet.web.render fetches {siteUrl} inside the non-deterministic block —
+                        no oracle, no off-chain worker.
+                      </small>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="consensus-step-index">02</span>
+                    <div>
+                      <strong>
+                        One LLM pass for {checkCount} {checkCount === 1 ? 'criterion' : 'criteria'}
+                      </strong>
+                      <small>
+                        The prompt asks for exactly one boolean per agreed criterion, with the page
+                        capture marked as untrusted data.
+                      </small>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="consensus-step-index">03</span>
+                    <div>
+                      <strong>Validators agree on every boolean</strong>
+                      <small>
+                        {evaluated
+                          ? `Independent validators repeated the read and matched all ${checkCount} answers.`
+                          : 'Independent validators repeat the read; a disagreement records nothing.'}
+                      </small>
+                    </div>
+                  </li>
+                  <li>
+                    <span className="consensus-step-index">04</span>
+                    <div>
+                      <strong>Deterministic write, once</strong>
+                      <small>
+                        {evaluated
+                          ? 'Only ids and booleans were stored; the model’s prose is deliberately kept off chain.'
+                          : 'Nothing is written until validators agree, and only the case owner can trigger it.'}
+                      </small>
+                    </div>
+                  </li>
+                </ol>
+              </div>
+            ) : null}
+
             <div className="detail-section-title">ACCEPTANCE CHECKS · {pad2(checkCount)}</div>
 
             {criteria.map((criterion, index) => {
