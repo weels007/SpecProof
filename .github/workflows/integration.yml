@@ -52,5 +52,7 @@ jobs:
           echo "live evaluation: $live"
       - name: Install GenLayer tooling
         run: pip install -r requirements.txt
+      # -s keeps the printed wallet and contract addresses in the log, so a
+      # fresh Studionet deployment can be quoted in SUBMISSION.md.
       - name: Run integration tests
-        run: gltest tests/integration -v --network "$NETWORK"
+        run: gltest tests/integration -s -v --network "$NETWORK"
