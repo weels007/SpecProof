@@ -19,6 +19,7 @@ undetermined when validators disagree.
 
 import json
 import os
+import re
 from pathlib import Path
 
 import pytest
@@ -45,19 +46,43 @@ def _keystore_account(label: str) -> LocalAccount | None:
     """Decrypt KEYSTORE_<label> (or the file in KEYSTORE_PATH_<label>)."""
     raw = os.environ.get(f"KEYSTORE_{label}", "").strip()
     path = os.environ.get(f"KEYSTORE_PATH_{label}", "").strip()
-    password = os.environ.get(f"KEYSTORE_PASSWORD_{label}", "")
+    password = os.environ.get(f"KEYSTORE_PASSWORD_{label}", "").strip()
 
     if not raw and path:
         raw = Path(path).read_text().strip()
     if not raw:
         return None
 
+    text = raw.strip().strip("\"'")
+
+    # A raw private key pasted into the keystore secret still works.
+    if re.fullmatch(r"(0x)?[0-9a-fA-F]{64}", text):
+        return Account.from_key(text)
+
     try:
-        return Account.from_keystore(raw, password)
+        payload = json.loads(text)
+    except ValueError as error:
+        raise RuntimeError(
+            f"KEYSTORE_{label} is not JSON. Paste the contents of the keystore file "
+            "(a JSON object with a \"crypto\" field), not a file path."
+        ) from error
+
+    if not isinstance(payload, dict) or not ("crypto" in payload or "Crypto" in payload):
+        raise RuntimeError(
+            f"KEYSTORE_{label} is JSON but not a keystore v3 object "
+            "(it has no \"crypto\" field)."
+        )
+
+    if not password:
+        raise RuntimeError(f"KEYSTORE_PASSWORD_{label} is empty.")
+
+    try:
+        return Account.from_keystore(text, password)
     except Exception as error:
         raise RuntimeError(
-            f"Could not unlock KEYSTORE_{label} with KEYSTORE_PASSWORD_{label}. "
-            "Check both values; the wallet was not used."
+            f"Could not unlock KEYSTORE_{label}. Check that KEYSTORE_PASSWORD_{label} "
+            "is the password that keystore was exported with (no quotes, no trailing "
+            "newline) and that both secrets belong to the same wallet."
         ) from error
 
 
