@@ -10,13 +10,22 @@ import type { EvaluationCase } from '../types';
 
 type WorkspacePageProps = {
   cases: EvaluationCase[];
+  /** `case_count` on the registry, which can be larger than the rows listed. */
+  total: number;
   loading: boolean;
   error: string | null;
   onOpenCase: (id: string) => void;
   onNewCase: () => void;
 };
 
-export function WorkspacePage({ cases, loading, error, onOpenCase, onNewCase }: WorkspacePageProps) {
+export function WorkspacePage({
+  cases,
+  total,
+  loading,
+  error,
+  onOpenCase,
+  onNewCase,
+}: WorkspacePageProps) {
   const [alertVisible, setAlertVisible] = useState(true);
   const recentCases = cases.slice(0, 3);
   const sampleCount = cases.filter((item) => item.status === 'sample').length;
@@ -27,7 +36,7 @@ export function WorkspacePage({ cases, loading, error, onOpenCase, onNewCase }: 
 
       {alertVisible ? <PrototypeAlert onDismiss={() => setAlertVisible(false)} /> : null}
 
-      <MetricsGrid caseCount={cases.length} sampleCount={sampleCount} />
+      <MetricsGrid total={total} shown={cases.length} sampleCount={sampleCount} />
 
       <div className="section-heading">
         <div>

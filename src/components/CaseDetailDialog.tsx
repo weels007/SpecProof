@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ToastTone } from '../hooks/useToast';
 import { copyText } from '../lib/clipboard';
-import { pad2 } from '../lib/format';
+import { pad2, shortAddress } from '../lib/format';
 import {
   REGISTRY_ADDRESS,
   chainErrorMessage,
@@ -22,10 +22,6 @@ type CaseDetailDialogProps = {
   onNotify: (message: string, tone: ToastTone) => void;
   onChainEvaluated: (id: string) => void;
 };
-
-function shortAddress(address: string): string {
-  return address.length > 12 ? `${address.slice(0, 6)}…${address.slice(-4)}` : address;
-}
 
 export function CaseDetailDialog({
   item,
@@ -233,6 +229,14 @@ export function CaseDetailDialog({
             {chainError ? (
               <p className="wallet-alert wallet-alert--error" role="alert">
                 {chainError}
+              </p>
+            ) : null}
+
+            {isOnChain && evaluated ? (
+              <p className="detail-note">
+                {chainResult?.all_passed
+                  ? 'Every agreed criterion was met.'
+                  : `${passedCount} of ${checkCount} criteria were met.`}
               </p>
             ) : null}
 

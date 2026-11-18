@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react';
 import { CaseTable } from '../components/CaseTable';
-import { pad2 } from '../lib/format';
+import { pad2, shortAddress } from '../lib/format';
+import { REGISTRY_ADDRESS, explorerAddress } from '../lib/genlayer';
 import type { EvaluationCase } from '../types';
 
 type EvaluationsPageProps = {
   cases: EvaluationCase[];
+  /** `case_count` on the registry, so the header knows when the list is truncated. */
+  total: number;
   loading: boolean;
   error: string | null;
   onOpenCase: (id: string) => void;
@@ -16,6 +19,7 @@ type Tab = 'all' | 'pending';
 
 export function EvaluationsPage({
   cases,
+  total,
   loading,
   error,
   onOpenCase,
@@ -24,6 +28,8 @@ export function EvaluationsPage({
 }: EvaluationsPageProps) {
   const [tab, setTab] = useState<Tab>('all');
   const [query, setQuery] = useState('');
+
+  const effectiveTotal = total > 0 ? total : cases.length;
 
   const pending = useMemo(
     () => cases.filter((item) => item.status === 'onchain' && !item.evaluated),
@@ -67,7 +73,7 @@ export function EvaluationsPage({
             type="button"
             onClick={() => setTab('all')}
           >
-            All cases <span>{pad2(cases.length)}</span>
+            All cases <span>{pad2(effectiveTotal)}</span>
           </button>
           <button
             className={tab === 'pending' ? 'list-tab active' : 'list-tab'}
@@ -98,6 +104,12 @@ export function EvaluationsPage({
         </p>
       ) : null}
 
+      {total > cases.length ? (
+        <p className="detail-note">
+          Showing the newest {cases.length} of {total} cases recorded in the registry.
+        </p>
+      ) : null}
+
       <CaseTable
         cases={visible}
         onOpenCase={onOpenCase}
@@ -113,8 +125,18 @@ export function EvaluationsPage({
       />
 
       <p className="eval-footnote">
-        Cases come from the SpecProof registry on Studionet. Sample records are illustrative and are
-        never fetched from a website.
+        Cases come from the SpecProof registry on Studionet
+        {REGISTRY_ADDRESS ? (
+          <>
+            {' '}
+            (
+            <a href={explorerAddress(REGISTRY_ADDRESS)} target="_blank" rel="noreferrer">
+              {shortAddress(REGISTRY_ADDRESS)} ↗
+            </a>
+            )
+          </>
+        ) : null}
+        . Sample records are illustrative and are never fetched from a website.
       </p>
     </>
   );

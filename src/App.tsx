@@ -10,7 +10,7 @@ import { useCases } from './hooks/useCases';
 import { useToast } from './hooks/useToast';
 import { useWallet } from './hooks/useWallet';
 import { safeHost } from './lib/format';
-import { chainErrorMessage, createCase } from './lib/genlayer';
+import { chainErrorMessage, createCase, MAX_REGISTRY_CASES } from './lib/genlayer';
 import { navigateTo, routeTitle, useRoute } from './lib/router';
 import { SAMPLE_CASES } from './lib/samples';
 import { EvaluationsPage } from './pages/EvaluationsPage';
@@ -23,7 +23,13 @@ export default function App() {
   const route = useRoute();
   const wallet = useWallet();
   const { toast, show: showToast, dismiss: dismissToast } = useToast();
-  const { cases, loading: casesLoading, error: casesError, refresh: refreshCases } = useCases();
+  const {
+    cases,
+    total,
+    loading: casesLoading,
+    error: casesError,
+    refresh: refreshCases,
+  } = useCases();
 
   const [walletOpen, setWalletOpen] = useState(false);
   const [creatingCase, setCreatingCase] = useState(false);
@@ -45,8 +51,13 @@ export default function App() {
     setStartRequested(false);
   }, [route, startRequested]);
 
-  // Sample rows stand in only while the registry returns nothing.
-  const allCases = useMemo(() => (cases.length > 0 ? cases : SAMPLE_CASES), [cases]);
+  // Sample rows stand in only when the registry answered with no cases at all —
+  // never while a read is in flight or after it failed, so a broken registry
+  // cannot look like a populated one.
+  const allCases = useMemo(
+    () => (cases.length > 0 || casesLoading || casesError ? cases : SAMPLE_CASES),
+    [cases, casesLoading, casesError],
+  );
   const detailCase = detailId ? allCases.find((item) => item.id === detailId) ?? null : null;
 
   const handleStart = useCallback(() => {
@@ -62,6 +73,11 @@ export default function App() {
     async (input: NewCaseInput): Promise<boolean> => {
       if (!wallet.address) {
         showToast('Connect a wallet to open a case on Studionet.', 'error');
+        return false;
+      }
+
+      if (total >= MAX_REGISTRY_CASES) {
+        showToast('The registry is full (500 cases), so no new case can be opened.', 'error');
         return false;
       }
 
@@ -86,7 +102,7 @@ export default function App() {
         return false;
       }
     },
-    [refreshCases, showToast, wallet.address],
+    [refreshCases, showToast, total, wallet.address],
   );
 
   const handleWalletConnected = useCallback(() => {
@@ -113,13 +129,14 @@ export default function App() {
         <AppLayout
           route={route}
           wallet={wallet}
-          caseCount={allCases.length}
+          caseCount={total > 0 ? total : allCases.length}
           onOpenWallet={openWallet}
           onNewCase={openNewCase}
         >
           {route === 'evaluations' ? (
             <EvaluationsPage
               cases={allCases}
+              total={total}
               loading={casesLoading}
               error={casesError}
               onOpenCase={setDetailId}
@@ -129,6 +146,7 @@ export default function App() {
           ) : (
             <WorkspacePage
               cases={allCases}
+              total={total}
               loading={casesLoading}
               error={casesError}
               onOpenCase={setDetailId}

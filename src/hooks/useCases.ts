@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { chainErrorMessage, listCases, registryConfigured } from '../lib/genlayer';
+import { chainErrorMessage, listCases, readCaseCount, registryConfigured } from '../lib/genlayer';
 import type { ChainCaseSummary } from '../lib/genlayer';
 import type { EvaluationCase } from '../types';
 
@@ -20,15 +20,22 @@ function toCase(summary: ChainCaseSummary): EvaluationCase {
   };
 }
 
-/** Every case in the registry, read from Studionet; no wallet needed. */
+/**
+ * Cases from the registry, plus the registry's own case count.
+ *
+ * The count matters because `list_cases` is capped at 50: it is how the app
+ * knows the list is truncated, and whether the registry has room for another case.
+ */
 export function useCases() {
   const [cases, setCases] = useState<EvaluationCase[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!registryConfigured()) {
       setCases([]);
+      setTotal(0);
       setError('This build has no registry address yet.');
       setLoading(false);
       return;
@@ -36,7 +43,8 @@ export function useCases() {
 
     setLoading(true);
     try {
-      const summaries = await listCases();
+      const [count, summaries] = await Promise.all([readCaseCount(), listCases()]);
+      setTotal(count);
       setCases(summaries.map(toCase));
       setError(null);
     } catch (caught) {
@@ -50,5 +58,5 @@ export function useCases() {
     void refresh();
   }, [refresh]);
 
-  return { cases, loading, error, refresh };
+  return { cases, total, loading, error, refresh };
 }

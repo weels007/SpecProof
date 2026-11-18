@@ -14,6 +14,13 @@ export type ChainAddress = `0x${string}`;
  */
 export const REGISTRY_ADDRESS = '0x40C41c0E67Ae771A5A1BcDDD6e67C8C0cD08BfbF' as ChainAddress;
 
+/** Mirrors MAX_CASES in the contract, so the app can refuse before a doomed write. */
+export const MAX_REGISTRY_CASES = 500;
+
+/** A create waits for one consensus round; an evaluation also renders a page. */
+const CREATE_TIMEOUT = 360_000;
+const EVALUATE_TIMEOUT = 600_000;
+
 export type ChainSpec = {
   id: string;
   creator: string;
@@ -167,6 +174,27 @@ export async function listCases(): Promise<ChainCaseSummary[]> {
 }
 
 /**
+ * How many cases the registry holds.
+ *
+ * `list_cases` is capped at 50, so this is the only way to tell the difference
+ * between "50 cases" and "500 cases" — and to know the registry is full.
+ */
+export async function readCaseCount(): Promise<number> {
+  requireRegistry();
+
+  const raw = await readClient.readContract({
+    address: REGISTRY_ADDRESS,
+    functionName: 'case_count',
+    args: [],
+  });
+  const count = Number.parseInt(String(raw).trim(), 10);
+  if (!Number.isFinite(count) || count < 0) {
+    throw new Error('case_count returned no number');
+  }
+  return count;
+}
+
+/**
  * Put the wallet on Studio ourselves.
  *
  * `client.connect()` is MetaMask-only: it probes `wallet_getSnaps` and asks to
@@ -296,6 +324,7 @@ async function sendWrite(
   functionName: string,
   args: unknown[],
   timeoutMessage: string,
+  timeoutMs: number,
 ): Promise<string> {
   requireRegistry();
 
@@ -315,7 +344,7 @@ async function sendWrite(
   const hash = (await client.writeContract(payload as never)) as string;
   const receipt = await withTimeout(
     client.waitForTransactionReceipt({ hash: hash as never }) as unknown as Promise<unknown>,
-    360_000,
+    timeoutMs,
     timeoutMessage,
   );
   if (!succeeded(receipt)) {
@@ -332,16 +361,28 @@ export type CreateResult = {
 };
 
 async function findCreatedCase(walletAddress: string, siteUrl: string): Promise<string | null> {
-  try {
-    const cases = await listCases();
-    const mine = cases.find(
-      (item) =>
-        item.creator.toLowerCase() === walletAddress.toLowerCase() && item.site_url === siteUrl,
-    );
-    return mine?.id ?? null;
-  } catch {
-    return null;
+  // The write is final once its receipt is accepted, but the node can serve a
+  // list one block behind, so give it a couple of retries before giving up.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const cases = await listCases();
+      const mine = cases
+        .filter(
+          (item) =>
+            item.creator.toLowerCase() === walletAddress.toLowerCase() &&
+            item.site_url === siteUrl,
+        )
+        .sort((a, b) => Number(b.id) - Number(a.id))[0];
+
+      if (mine) return mine.id;
+    } catch {
+      // fall through to the next attempt
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, 800));
   }
+
+  return null;
 }
 
 export async function createCase(
@@ -355,6 +396,7 @@ export async function createCase(
     'create_case',
     [title, siteUrl, criteria.join('\n')],
     'The case took too long to open. Check the transaction in the explorer before retrying.',
+    CREATE_TIMEOUT,
   );
 
   return { caseId: await findCreatedCase(walletAddress, siteUrl), txHash };
@@ -373,6 +415,7 @@ export async function evaluateCase(
     'evaluate',
     [caseId],
     'Consensus took too long. Check the transaction in the explorer before retrying.',
+    EVALUATE_TIMEOUT,
   );
 
   return { txHash };
@@ -390,6 +433,11 @@ const FRIENDLY: Array<[RegExp, string]> = [
   [/already recorded|already been recorded/i, 'This case is already evaluated; a result can only be written once.'],
   [/only the case creator/i, 'Only the wallet that opened this case can evaluate it.'],
   [/unknown case/i, 'That case id is not in the registry. Refresh the list and try again.'],
+  [/criteria are too long/i, 'The rubric is too long overall (1200 characters max). Shorten the criteria.'],
+  [/website URL is too long/i, 'That website URL is too long (512 characters max).'],
+  [/must differ from each other/i, 'Two criteria are identical; make each one distinct.'],
+  [/registry is full|case registry is full/i, 'The registry is full (500 cases), so no new case can be opened.'],
+  [/returned no data|contract .*not.*found|no contract|execution reverted/i, 'The registry contract did not answer on Studionet. It may have been removed by a node reset; check REGISTRY_ADDRESS in src/lib/genlayer.ts.'],
   [/registry address is not set/i, NOT_CONFIGURED],
   [/must point at a public host|credentials|cannot contain spaces/i, 'That website URL cannot be checked. Use a public HTTP or HTTPS address.'],
   [/case name/i, 'Give the case a short name (80 characters at most).'],

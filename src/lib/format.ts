@@ -9,3 +9,7 @@ export function safeHost(url: string): string {
     return url;
   }
 }
+
+export function shortAddress(address: string): string {
+  return address.length > 12 ? `${address.slice(0, 6)}…${address.slice(-4)}` : address;
+}

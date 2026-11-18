@@ -1,26 +1,29 @@
 import { pad2 } from '../lib/format';
 
 type MetricsGridProps = {
-  caseCount: number;
+  /** Cases held by the registry (`case_count`), not just the rows on screen. */
+  total: number;
+  /** Rows the app listed (the registry returns at most 50). */
+  shown: number;
   sampleCount: number;
 };
 
-export function MetricsGrid({ caseCount, sampleCount }: MetricsGridProps) {
+export function MetricsGrid({ total, shown, sampleCount }: MetricsGridProps) {
   return (
     <section className="metrics-grid" aria-label="Workspace summary">
       <article className="metric-card">
         <div className="metric-label">
-          EVALUATIONS IN WORKSPACE{' '}
+          EVALUATIONS IN REGISTRY{' '}
           <span className="metric-icon icon-list" aria-hidden="true">
             ▤
           </span>
         </div>
         <div className="metric-value">
-          {pad2(caseCount)} <span className="metric-detail">cases</span>
+          {pad2(total)} <span className="metric-detail">cases</span>
         </div>
         <div className="metric-foot">
           <span className="metric-neutral">{pad2(sampleCount)} sample</span>
-          <span>not on-chain</span>
+          <span>{total > shown ? `newest ${pad2(shown)} shown` : 'on Studionet'}</span>
         </div>
       </article>
       <article className="metric-card">

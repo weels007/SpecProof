@@ -142,6 +142,23 @@ export function NewCaseDialog({
       return;
     }
 
+    // The contract compares criteria case-insensitively after collapsing spaces,
+    // so catch the same duplicates here instead of failing a paid-for write.
+    const seen = new Set<string>();
+    for (const criterion of cleanedCriteria) {
+      const key = criterion.replace(/\s+/g, ' ').toLowerCase();
+      if (seen.has(key)) {
+        setError('Two criteria are identical; make each one distinct.');
+        return;
+      }
+      seen.add(key);
+    }
+
+    if (cleanedCriteria.reduce((total, criterion) => total + criterion.length, 0) > 1200) {
+      setError('The rubric is too long overall (1200 characters max). Shorten the criteria.');
+      return;
+    }
+
     if (!connected) {
       setError('Connect a wallet to open this case in the registry.');
       return;

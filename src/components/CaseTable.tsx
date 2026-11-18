@@ -67,7 +67,10 @@ export function CaseTable({
                     <small>{safeHost(item.url)}</small>
                   </span>
                 </span>
-                <span className="criteria-count">{checkCount} checks</span>
+                <span className="criteria-count">
+                  {checkCount} checks
+                  {isOnChain && item.evaluated ? ` · ${item.passedCount ?? 0} met` : ''}
+                </span>
                 <span className={statusClass}>{statusLabel}</span>
                 <span className="case-date">
                   {item.updated ?? (isOnChain ? 'Studionet' : 'Example')}
