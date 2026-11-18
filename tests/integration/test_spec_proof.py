@@ -156,13 +156,17 @@ def _fee_arguments(callable_obj) -> dict:
     return {"fees": fees} if fees else {}
 
 
-def _deploy(factory, account):
+def _deploy_case(factory, account, site_url, criteria):
     return factory.deploy(
-        args=[SITE_URL, CRITERIA],
+        args=[site_url, criteria],
         account=account,
         **WAIT,
         **_fee_arguments(factory.deploy),
     )
+
+
+def _deploy(factory, account):
+    return _deploy_case(factory, account, SITE_URL, CRITERIA)
 
 
 def _send(handle, wait=None):
@@ -223,6 +227,24 @@ def test_outsider_cannot_evaluate(test_wallets):
 
     spec = json.loads(contract.get_spec().call())
     assert spec["evaluated"] is False
+
+
+def test_rejects_invalid_specs_on_chain(test_wallets):
+    creator, _ = test_wallets
+    factory = get_contract_factory("SpecProof")
+    repeated = CRITERIA.splitlines()[0]
+
+    invalid_cases = [
+        ("http://127.0.0.1/admin", CRITERIA, "private host"),
+        (SITE_URL, f"{repeated}\n{repeated}", "duplicate criteria"),
+        (SITE_URL, "A" * 181, "overlong criterion"),
+    ]
+
+    for site_url, criteria, label in invalid_cases:
+        contract = _deploy_case(factory, creator, site_url, criteria)
+        receipt = _send(contract.evaluate())
+        assert tx_execution_failed(receipt), label
+        assert json.loads(contract.get_spec().call())["evaluated"] is False
 
 
 @pytest.mark.skipif(
