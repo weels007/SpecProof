@@ -137,11 +137,13 @@ export default function App() {
             <EvaluationsPage
               cases={allCases}
               total={total}
+              walletAddress={wallet.address}
               loading={casesLoading}
               error={casesError}
               onOpenCase={setDetailId}
               onNewCase={openNewCase}
               onRefresh={handleRefresh}
+              onOpenWallet={openWallet}
             />
           ) : (
             <WorkspacePage
