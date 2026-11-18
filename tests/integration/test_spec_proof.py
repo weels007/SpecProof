@@ -259,7 +259,17 @@ def test_rejects_invalid_specs_on_chain(registry, test_wallets):
     ]
 
     for title, site_url, criteria, label in invalid_cases:
-        receipt = _send(registry.connect(creator).create_case(args=[title, site_url, criteria]))
+        # Every call here is meant to revert, so a retry after a transient node
+        # error cannot create anything.
+        for attempt in range(2):
+            try:
+                receipt = _send(
+                    registry.connect(creator).create_case(args=[title, site_url, criteria])
+                )
+                break
+            except Exception as error:
+                if attempt == 1 or "502" not in str(error):
+                    raise
         assert tx_execution_failed(receipt), label
 
     assert _count(registry) == before

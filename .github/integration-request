@@ -1,1 +1,1 @@
-Run 19: registry deploy plus args=[...] calls; print the registry address.
+Run 20: retry invalid create_case checks past a 502 and print the registry address.
