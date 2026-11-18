@@ -112,10 +112,18 @@ On-chain behaviour:
 
 ## Live deployment
 
-Each case is its own contract, so there is no single global address to link:
+A reference case from the Studionet integration suite ([run 44285347025](https://github.com/weels007/SpecProof/actions/runs/44285347025)):
+
+| What | Value |
+| --- | --- |
+| Case | `https://example.com`, two criteria, not yet evaluated |
+| Contract | [`0x81416F0633174133def7E829eb7bA7f9F75e996A`](https://explorer-studio.genlayer.com/address/0x81416F0633174133def7E829eb7bA7f9F75e996A) |
+| Creator | `0xE8b3e800d08727D25156a44cD1609F793bd0Af5a` |
+| Network | Studionet — `https://studio.genlayer.com/api` |
+
+Every case deploys its own contract, so this is one example rather than a global address:
 
 - **Where an address comes from** — the app's **Create** step deploys one `SpecProof` contract with the connected wallet and shows its address with an explorer link; the integration suite deploys the contracts it tests and prints each one as `[integration] contract 0x… for https://example.com`, visible in the Integration job log on the Actions tab.
-- **Studionet RPC** — `https://studio.genlayer.com/api`
 - **Explorer** — `https://explorer-studio.genlayer.com/address/<address>` and `https://explorer-studio.genlayer.com/tx/<hash>`
 - **Gas** — Studionet is gasless; neither wallet needs a GEN balance.
 - **Lifetime** — Studionet state is temporary, so a case contract can stop existing when the node resets. Every case keeps its address and explorer link so the record is still attributable afterwards.
