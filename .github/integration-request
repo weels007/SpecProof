@@ -4,4 +4,4 @@ Editing or re-pushing this file triggers the Integration (GenLayer) workflow
 against testnet_bradbury with the repository wallets. The run deploys the
 contract twice and sends one reverting transaction from the outsider wallet.
 
-Run 4: also try the password with surrounding quotes removed.
+Run 5: keystore password re-entered; run the funded Bradbury suite.
