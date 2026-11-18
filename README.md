@@ -1,12 +1,65 @@
 # SpecProof
 
-SpecProof is a prototype for checking whether a public website meets a short, agreed delivery
-rubric. The judgment that matters belongs in a GenLayer Intelligent Contract: validators
-independently inspect the same public page and compare the structured pass/fail decisions.
+**Proof for work that ships.** Write down what “done” means, let independent GenLayer validators check the public evidence, and keep one result nobody can quietly rewrite.
+
+SpecProof runs on **Studionet**: every case is deployed as its own Intelligent Contract from the app, the creator wallet records the evaluation, and the browser reads the spec and the result straight from the chain.
+
+---
+
+## Status
+
+| Surface | What works today |
+| --- | --- |
+| Contract | Linted with `genvm-lint`; 17 direct-mode tests; 4 Studionet integration tests with real wallets |
+| Frontend | React 18 + TypeScript + Vite; deploys, reads and evaluates against Studionet via `genlayer-js` |
+| CI | Contract lint, direct tests, frontend typecheck/build, manual Studionet suite, Vercel preview |
+| Hosting | Vercel-ready static build (`vercel.json`, `.nvmrc`, no environment variables) |
+
+---
+
+## Why GenLayer
+
+“Does this page meet the agreement?” is not on-chain data. It needs a public page, a natural-language rubric, and a judgment that several independent parties can re-run and compare.
+
+SpecProof uses GenLayer for exactly that:
+
+- the contract renders the page itself with `gl.nondet.web.render`, no oracle in between;
+- one LLM answers a strict rubric inside a non-deterministic block;
+- validators independently repeat the read and must agree on **every boolean**;
+- only deterministic code writes the result, once.
+
+---
+
+## How it works
+
+1. **Agree on the rubric.** A public URL and up to six observable criteria. The contract normalizes and stores them at deploy time, so the text the evaluator sees is the text on record.
+2. **Check public evidence.** The contract renders the page, wraps the capture in `<<<PAGE>>>` markers, treats it as untrusted data, and asks for one boolean per criterion.
+3. **Record one decision.** Validators compare ids and booleans only. Agreement writes a small result and closes the case; disagreement writes nothing and the creator may retry.
+
+### Contract API
+
+| Method | Type | Behaviour |
+| --- | --- | --- |
+| `__init__(site_url, criteria_text)` | deploy | Stores the deployer, the URL and the normalized rubric |
+| `evaluate()` | write | Creator-only, once-only: renders, judges, agrees, stores |
+| `get_spec()` | view | `creator`, `criteria`, `criteria_text`, `evaluated`, `site_url` |
+| `get_result()` | view | `{ all_passed, checks: [{ id, passed }] }` or `{}` before evaluation |
+
+### Security properties
+
+- **Creator-only evaluation** — the deployer is stored as an `Address`; everyone else reverts.
+- **One outcome, retry only on failure** — a successful evaluation closes the case; a failed or
+  inconclusive one writes nothing, so it can be retried.
+- **No unverified free text** — only ids and booleans are compared and stored; no leader-supplied
+  reasoning, score or percentage drives later behaviour.
+- **Bounded input** — HTTP(S) on a public host only (no credentials, localhost, private, link-local
+  or shared ranges); at most 6 criteria, 180 characters each, 1200 total, duplicates rejected.
+- **Grounding and injection handling** — the prompt carries the captured page as data, and the
+  output must match the expected ids, order and boolean types or the transaction reverts.
+
+---
 
 ## Frontend
-
-The frontend is a React 18 + TypeScript app built with Vite.
 
 ```bash
 npm install
@@ -15,167 +68,129 @@ npm run typecheck  # tsc --noEmit
 npm run build      # typecheck + production build into dist/
 ```
 
-Routes are hash based, so every page also survives a direct load on a static host:
+Routes are hash based, so deep links survive static hosting:
 
 - `#/` — landing page.
-- `#/workspace` — workspace overview (recent cases, metrics, decision path).
-- `#/evaluations` — every case, with tabs and search.
-- `#/how-it-works` — the method, a rubric example, the stored result, and the limits.
+- `#/workspace` — overview, metrics and recent cases.
+- `#/evaluations` — all cases with tabs and search.
+- `#/how-it-works` — the method, a rubric example, the stored result and the limits.
 
-Source layout:
+**On-chain flow**
 
-- `src/pages/` — one component per route.
-- `src/components/` — app shell, marketing shell, wallet dialog, case table, dialogs, toast.
-- `src/hooks/` — drafts (`localStorage`), typed toasts, and the wallet state machine.
-- `src/lib/` — hash router, Studionet client (`genlayer.ts`), wallet helpers, clipboard, sample
-  data, storage, formatting.
-- `src/styles.css` — the design system, landing page, and workspace layout.
+- **Create** deploys one SpecProof contract with the creator wallet and stores its address in this
+  browser. Local drafts still exist for exploring the UI without a wallet.
+- **Evaluate** appears only for the creator wallet and only before a result exists. The dialog waits
+  for the receipt, then re-reads `get_result`.
+- **Reads** (`get_spec`, `get_result`) need no wallet and run from the browser.
+- **Audit** — every case links to its contract, deployment transaction and evaluation transaction in
+  the Studio explorer, with a refresh control.
 
-Wallet handling keeps the wallet from popping up repeatedly: the app reads authorized accounts
-silently on load, sends one `eth_requestAccounts` per click behind a guard, reports a pending
-wallet request (`-32002`) instead of retrying it, and offers a clearly labelled demo session when
-no injected wallet exists (as in a preview webview). Errors are shown inline in the dialog and
-successes are confirmed with a toast.
+**Wallet discipline**
 
-The dashboard talks to the contract on Studionet through `genlayer-js`:
+- `eth_accounts` on load (no popup), one `eth_requestAccounts` per click behind a single-flight
+  guard, and `-32002` reported instead of retried.
+- Writes switch the wallet with `wallet_switchEthereumChain` (adding the chain on `4902`) rather than
+  `client.connect()`, which is MetaMask/Snap-only and breaks in other injected wallets.
+- Errors are translated into actionable text; consensus timeouts leave a clear message instead of
+  hanging; a rejected or undetermined write never looks like a success.
 
-- **Create on-chain case** deploys one SpecProof contract with the creator wallet — no fees on
-  Studionet, one wallet approval per deployment.
-- **Evaluate** is available only to the creator wallet; validators fetch the page and compare
-  every check. Closing the dialog before consensus finishes is safe: reopen it to read the
-  recorded result.
-- **Local draft** still exists for exploring the UI without a wallet; it is never deployed.
-- Reads (`get_spec`, `get_result`) need no wallet and run from the browser.
-- On-chain cases keep their contract address in this browser's `localStorage`; the contract is
-  the source of truth for the spec and the result.
-- Writes go through one provider-backed client; the app switches the wallet to Studionet with
-  `wallet_switchEthereumChain` (adding the chain when needed) instead of `client.connect()`,
-  which is MetaMask/Snap-only and breaks in other wallets.
-- Every on-chain case links to its contract, deployment transaction and evaluation transaction in
-  the Studio explorer; consensus timeouts show a clear message instead of hanging.
+---
 
-## Deploy on Vercel
-
-The repository is ready for Vercel as a static Vite site:
-
-1. **Add New → Project** in Vercel and import this repository.
-2. Keep the detected settings: framework **Vite**, install `npm install`, build `npm run build`,
-   output `dist` (also pinned in `vercel.json`). Node 22 comes from `.nvmrc`.
-3. **No environment variables are required.** The Studionet RPC is public, and every case keeps
-   its own contract address in the visitor's browser.
-
-Notes:
-
-- Routes are hash based (`/#/workspace`), so no SPA rewrite is needed and deep links work on a
-  static host.
-- `contracts/spec_proof.py` is bundled at build time (`?raw`) so the browser can deploy a case;
-  it must stay in the upload, which is why `.vercelignore` does not exclude `contracts/`.
-- The on-chain flow needs an HTTPS origin (Vercel provides one) and a browser with an injected
-  wallet. Without a wallet the app still runs: reads work and drafts stay local.
-- `genlayer-js` is bundled by Vite; there is no API route, database or server to configure.
-
-## Contract
-
-`contracts/spec_proof.py` stores a public URL and a newline-separated rubric, renders the page
-inside a non-deterministic block, asks for one boolean decision per criterion, and has validators
-independently repeat the evaluation. Validators compare the stable decision fields rather than
-free-form explanations.
-
-Security properties worth knowing before any deployment:
-
-- **Creator-only evaluation.** The deployer is stored as an `Address`; anyone else calling
-  `evaluate` reverts, so a third party cannot burn a case's one recorded result.
-- **One outcome, retry only on failure.** A successful evaluation sets `evaluated` and every later
-  call reverts. A failed or inconclusive evaluation writes nothing, so the creator can retry.
-- **No unverified free text in the result.** Only criterion ids and booleans are compared and
-  stored; there is no leader-supplied reasoning, score or percentage that later logic relies on.
-- **Bounded input.** The URL must be HTTP(S) on a public host (no credentials, localhost, private,
-  link-local or shared ranges), and the rubric is capped at 6 criteria, 180 characters each and
-  1200 in total, with duplicates rejected.
-- **Normalized rubric.** Criteria are whitespace-collapsed and stored once, so the text the
-  evaluator sees is exactly the text recorded in the contract.
-- **Grounding and injection handling.** The prompt contains the captured page itself, wrapped in
-  `<<<PAGE>>>` markers and explicitly treated as untrusted data; the output must match the expected
-  ids, order and boolean types or the transaction reverts.
-
-Tooling (Python 3.12+):
+## Testing
 
 ```bash
 pip install -r requirements.txt
 genvm-lint check contracts/spec_proof.py
-pytest tests/direct -v
+pytest tests/direct -v                 # 17 tests, mocked web + LLM
 ```
 
-`tests/direct` runs in-memory with mocked web and LLM responses, including validator agreement
-and disagreement. `tests/integration` runs against a real network and is not part of the push CI:
+`tests/integration` runs against Studionet with real wallets:
 
 ```bash
 gltest tests/integration -v --network studionet
 ```
 
-## Integration test on Studionet (real wallets)
-
-`tests/integration` deploys the contract with a real wallet and checks the creator-only guard
-with a second wallet on **Studionet** — hosted, gasless, with real wallets and real consensus.
-Push CI stays fast; the **Integration (GenLayer)** workflow runs it, and a push that edits
-`.github/integration-request` triggers it automatically.
+It covers fast deploys and reads, an outsider call that must fail, three invalid specs that must
+revert on-chain, and — with `SPECPROOF_LIVE_EVALUATION=1` — the full E2E: outsider attempt rejected,
+creator's real web + LLM evaluation recorded, both follow-up attempts rejected, stored result
+unchanged.
 
 Wallets come from repository secrets (Settings → Secrets and variables → Actions):
 
-- `KEYSTORE_1` — the creator wallet's keystore JSON (Web3 v3).
-- `KEYSTORE_PASSWORD_1` — the password for `KEYSTORE_1`.
-- `KEYSTORE_2` / `KEYSTORE_PASSWORD_2` — optional second wallet used as the adversarial caller.
-  Without it, the outsider test is skipped.
+- `KEYSTORE_1` + `KEYSTORE_PASSWORD_1` — creator/deployer.
+- `KEYSTORE_2` + `KEYSTORE_PASSWORD_2` — optional adversarial caller.
+- Plaintext `ACCOUNT_PRIVATE_KEY_1` / `_2` still work, and are used when a keystore cannot be
+  unlocked.
 
-Plaintext keys still work if you prefer them: `ACCOUNT_PRIVATE_KEY_1` (and optionally
-`ACCOUNT_PRIVATE_KEY_2`) instead of the keystore pair.
+The keystore secret holds the JSON itself (a base64 copy is accepted), never a path or a quoted
+string; the password stays in its own secret. Decryption happens in memory. Studionet is gasless, so
+neither wallet needs a GEN balance.
 
-Keystore notes:
+The **Integration (GenLayer)** workflow runs the suite on demand, and a push that edits
+`.github/integration-request` triggers it automatically.
 
-- The secret holds the JSON itself, not a path and not a quoted string; a base64 copy is also
-  accepted. A single-line copy is easiest: `jq -c . keystore.json`.
-- Keep the password in its own secret, never inside the JSON secret.
-- The test decrypts in memory with `Account.decrypt(...)` and never writes the keystore to disk.
-  If a keystore cannot be unlocked, `ACCOUNT_PRIVATE_KEY_n` is used when present.
-- Never commit the keystore, paste it into a chat, or put it in `.env.example`.
-
-Studionet is gasless, so neither wallet needs a GEN balance. For a local run, fill `.env` (copied
-from `.env.example`; `KEYSTORE_PATH_1` is handy locally) and run:
-
-```bash
-gltest tests/integration -v --network studionet
-```
-
-`SPECPROOF_LIVE_EVALUATION=1` additionally runs the end-to-end scenario: an outsider wallet's
-`evaluate` is rejected, the creator's real web + LLM evaluation is recorded, and both parties'
-later attempts are rejected without changing the stored result.
-
-SpecProof itself is not payable and holds no funds, so there is nothing to drain or lock here.
+---
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on pushes to `main`, pull requests and manual dispatch:
+`.github/workflows/ci.yml` runs on pushes, pull requests and manual dispatch:
 
 - **Contract lint** — `genvm-lint check` for every contract in `contracts/`.
 - **Contract direct-mode tests** — `pytest tests/direct -v`.
 - **Frontend typecheck and build** — `npm run typecheck` and `npm run build`.
 
-The suite in `tests/direct` covers input validation, a fully passing and a partially failing
-evaluation, unusable evaluator output, validator agreement and disagreement, and the
-one-evaluation guard. GitHub Actions is the only place this repository runs those checks, so
-`main` is kept green by the workflow rather than by a local run.
+---
 
-Before deploying, test the contract against the current GenLayer runtime and refine its
-rubric/input limits, page rendering behavior, error handling, and adversarial-page defenses. A
-page can change between validator requests, HTML can be incomplete, and LLM decisions can
-disagree; unresolved consensus should not be presented as a final result.
+## Deploy on Vercel
 
-References:
+1. **Add New → Project** in Vercel and import this repository.
+2. Keep framework **Vite**, install `npm install`, build `npm run build`, output `dist` (pinned in
+   `vercel.json`). Node 22 comes from `.nvmrc`.
+3. **No environment variables are required.** The Studionet RPC is public and each case keeps its
+   own contract address in the visitor's browser.
 
-- [Intelligent Contract introduction](https://docs.genlayer.com/developers/intelligent-contracts/introduction)
+`contracts/spec_proof.py` is bundled at build time (`?raw`) for on-chain deployment, so
+`.vercelignore` deliberately keeps `contracts/`. The on-chain flow needs HTTPS (Vercel) and a
+browser with an injected wallet; without one the app still reads and keeps local drafts.
+
+---
+
+## Repository layout
+
+```text
+contracts/spec_proof.py     Intelligent Contract
+tests/direct/               mocked web + LLM, fast
+tests/integration/          Studionet, real wallets, E2E
+src/pages/                  landing, workspace, evaluations, how it works
+src/components/             shell, dialogs, wallet, case table, toast
+src/hooks/                  drafts, toasts, wallet state machine
+src/lib/genlayer.ts         Studionet reads, wallet writes, receipts
+.github/workflows/          push CI, manual Studionet suite
+SUBMISSION.md               form-ready submission text
+```
+
+---
+
+## Limits
+
+- Pages behind a login cannot be checked; a page that changes between validator reads can end
+  undetermined (nothing is written).
+- Only the first 12,000 characters of a capture reach the evaluator.
+- No evidence hash is stored on-chain; validators re-read the page rather than replaying one capture.
+- Studionet state is temporary. A case contract can stop existing when the node resets, which is why
+  each case shows its address and explorer link.
+- The frontend has no server, indexer or cross-browser case list: addresses live in the visitor's
+  browser.
+
+---
+
+## References
+
+- [Intelligent Contracts](https://docs.genlayer.com/developers/intelligent-contracts/introduction)
 - [When to use GenLayer](https://docs.genlayer.com/developers/intelligent-contracts/when-to-use-genlayer)
 - [Web access](https://docs.genlayer.com/developers/intelligent-contracts/features/web-access)
 - [Calling LLMs](https://docs.genlayer.com/developers/intelligent-contracts/features/calling-llms)
 - [Testing Intelligent Contracts](https://docs.genlayer.com/developers/intelligent-contracts/testing)
 - [genvm-linter](https://docs.genlayer.com/api-references/genlayer-linter)
 - [Equivalence Principle](https://docs.genlayer.com/equivalence-principle)
+- [GenLayerJS](https://docs.genlayer.com/api-references/genlayer-js)
