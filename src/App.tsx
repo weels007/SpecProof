@@ -65,7 +65,7 @@ export default function App() {
         }
 
         try {
-          const address = await deployCase(wallet.address, input.url, input.criteria);
+          const { address, txHash } = await deployCase(wallet.address, input.url, input.criteria);
           const deployed: EvaluationCase = {
             id: address,
             title: displayName,
@@ -73,6 +73,7 @@ export default function App() {
             criteria: input.criteria,
             status: 'onchain',
             address,
+            deployTx: txHash,
             creator: wallet.address.toLowerCase(),
             evaluated: false,
             createdAt: new Date().toISOString(),

@@ -540,3 +540,8 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .detail-evaluate { margin-top: 14px; padding: 13px; border: 1px solid #d8e6cd; border-radius: 8px; background: #f7fbf2; }
 .detail-evaluate .button { width: 100%; justify-content: center; }
 .detail-evaluate p { margin: 9px 0 0; color: #7c8a7e; font-size: 10px; line-height: 1.6; }
+
+
+.detail-links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0 0 14px; font-size: 10px; }
+.detail-links a { color: #4f7652; font-weight: 600; }
+.detail-links a:hover { text-decoration: underline; }

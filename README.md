@@ -48,8 +48,11 @@ The dashboard talks to the contract on Studionet through `genlayer-js`:
 - Reads (`get_spec`, `get_result`) need no wallet and run from the browser.
 - On-chain cases keep their contract address in this browser's `localStorage`; the contract is
   the source of truth for the spec and the result.
-- Writes go through one provider-backed client and call `connect('studionet')` once, so a wallet
-  is never asked to sign or switch networks twice for the same action.
+- Writes go through one provider-backed client; the app switches the wallet to Studionet with
+  `wallet_switchEthereumChain` (adding the chain when needed) instead of `client.connect()`,
+  which is MetaMask/Snap-only and breaks in other wallets.
+- Every on-chain case links to its contract, deployment transaction and evaluation transaction in
+  the Studio explorer; consensus timeouts show a clear message instead of hanging.
 
 ## Contract
 

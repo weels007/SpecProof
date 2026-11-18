@@ -19,6 +19,8 @@ export type EvaluationCase = {
   tone?: string;
   /** Studionet contract that holds this case, once deployed. */
   address?: string;
+  /** Deployment transaction hash, for the explorer link. */
+  deployTx?: string;
   creator?: string;
   evaluated?: boolean;
 };

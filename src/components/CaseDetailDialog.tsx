@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ToastTone } from '../hooks/useToast';
 import { copyText } from '../lib/clipboard';
 import { pad2 } from '../lib/format';
-import { chainErrorMessage, evaluateCase, readCase } from '../lib/genlayer';
+import { chainErrorMessage, evaluateCase, explorerAddress, explorerTx, readCase } from '../lib/genlayer';
 import type { ChainCase } from '../lib/genlayer';
 import type { CheckResult, EvaluationCase } from '../types';
 
@@ -36,6 +36,7 @@ export function CaseDetailDialog({
   const [chainLoading, setChainLoading] = useState(false);
   const [chainError, setChainError] = useState<string | null>(null);
   const [evaluating, setEvaluating] = useState(false);
+  const [evaluateTx, setEvaluateTx] = useState<string | null>(null);
 
   const isOnChain = item?.status === 'onchain' && Boolean(item.address);
 
@@ -61,6 +62,7 @@ export function CaseDetailDialog({
     setChainCase(null);
     setChainError(null);
     setEvaluating(false);
+    setEvaluateTx(null);
   }, [item?.id]);
 
   const loadChainCase = useCallback(async (address: string) => {
@@ -92,7 +94,8 @@ export function CaseDetailDialog({
     if (!item?.address || !walletAddress || evaluating) return;
     setEvaluating(true);
     try {
-      await evaluateCase(walletAddress, item.address);
+      const { txHash } = await evaluateCase(walletAddress, item.address);
+      setEvaluateTx(txHash);
       onChainEvaluated(item.id);
       await loadChainCase(item.address);
       onNotify('Evaluation recorded on Studionet.', 'success');
@@ -165,6 +168,24 @@ export function CaseDetailDialog({
                 >
                   Copy address
                 </button>
+              </div>
+            ) : null}
+
+            {isOnChain ? (
+              <div className="detail-links">
+                <a href={explorerAddress(item.address ?? '')} target="_blank" rel="noreferrer">
+                  Contract on explorer ↗
+                </a>
+                {item.deployTx ? (
+                  <a href={explorerTx(item.deployTx)} target="_blank" rel="noreferrer">
+                    Deploy tx ↗
+                  </a>
+                ) : null}
+                {evaluateTx ? (
+                  <a href={explorerTx(evaluateTx)} target="_blank" rel="noreferrer">
+                    Evaluation tx ↗
+                  </a>
+                ) : null}
               </div>
             ) : null}
 
