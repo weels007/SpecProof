@@ -6,6 +6,10 @@ networks:
 
   studionet: {}
 
+  # Wallets come from the test process (KEYSTORE_1 / ACCOUNT_PRIVATE_KEY_1),
+  # never from this file, so plain pytest and CI need no secrets.
+  testnet_bradbury: {}
+
 paths:
   contracts: "contracts"
 

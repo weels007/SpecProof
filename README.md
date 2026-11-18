@@ -89,34 +89,43 @@ gltest tests/integration -v --network studionet
 with a second wallet. Push CI stays fast; the **Integration (GenLayer)** workflow runs this on
 demand from the Actions tab.
 
-Repository secrets (Settings → Secrets and variables → Actions):
+An encrypted keystore is supported first: the test decrypts it in memory with `eth_account`, so
+no plaintext key has to exist anywhere. Repository secrets (Settings → Secrets and variables →
+Actions):
 
-- `ACCOUNT_PRIVATE_KEY_1` — the case creator and deployer. Needs testnet GEN on Bradbury for the
-  deploy and for the evaluation transaction.
-- `ACCOUNT_PRIVATE_KEY_2` — a separate wallet used as the adversarial caller. It only needs enough
-  GEN to send one reverting transaction. Without it, the outsider test is skipped.
+- `KEYSTORE_1` — the creator wallet's keystore JSON (Web3 v3, the format `genlayer account
+  export` and MetaMask export produce). Needs testnet GEN on Bradbury for the deploy and the
+  evaluation transaction.
+- `KEYSTORE_PASSWORD_1` — the password for `KEYSTORE_1`.
+- `KEYSTORE_2` / `KEYSTORE_PASSWORD_2` — optional second wallet used as the adversarial caller. It
+  only needs enough GEN to send one reverting transaction. Without it, the outsider test is
+  skipped.
 
-Nothing else is required: the Bradbury RPC and chain id come from `gltest`, and the network's own
-validators run the model, so no LLM or RPC keys are needed.
+Plaintext keys still work if you prefer them: `ACCOUNT_PRIVATE_KEY_1` (and optionally
+`ACCOUNT_PRIVATE_KEY_2`) instead of the keystore pair.
 
-For a local funded run, fill `.env` (copied from `.env.example`) and swap in the testnet config:
+Tips for the keystore secret:
+
+- Paste the JSON itself, not a path and not a quoted string. A single-line copy is easiest:
+  `jq -c . keystore.json`.
+- Keep the password in its own secret, never inside the JSON secret.
+- Keystore and password together control the wallet, exactly like a private key. Use a throwaway
+  wallet funded only with testnet GEN, never one with mainnet funds.
+- Never commit the keystore, paste it into a chat, or put it in `.env.example`.
+
+Nothing else is required: the Bradbury RPC and chain id come from `gltest`, this contract's
+tests pass the decrypted account explicitly, and the network's own validators run the model — so
+no LLM or RPC keys are needed and `gltest.config.yaml` holds no wallet references.
+
+For a local funded run, fill `.env` (copied from `.env.example`; use `KEYSTORE_PATH_1` for a
+keystore file) and run:
 
 ```bash
-cp gltest.testnet.yaml gltest.config.yaml
 gltest tests/integration -v --network testnet_bradbury
-git restore gltest.config.yaml
 ```
 
-`gltest` reads `gltest.config.yaml` at startup, including during plain `pytest` runs, which is why
-the committed default config contains no wallet references and the funded network lives in a
-separate file.
-
-Rules:
-
-- Use a throwaway wallet funded only with testnet GEN, never a wallet with mainnet funds.
-- Never commit the key, paste it into a chat, or put it in `.env.example`.
-- `SPECPROOF_LIVE_EVALUATION=1` (a variable, not a secret) additionally runs a real web + LLM
-  evaluation, which costs fees and depends on validator agreement.
+`SPECPROOF_LIVE_EVALUATION=1` (a variable, not a secret) additionally runs a real web + LLM
+evaluation, which costs fees and depends on validator agreement.
 
 SpecProof itself is not payable and holds no funds, so there is no escrow to drain or lock here —
 the only cost of an adversarial run is gas.
