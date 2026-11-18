@@ -27,7 +27,8 @@ Source layout:
 - `src/pages/` — one component per route.
 - `src/components/` — app shell, marketing shell, wallet dialog, case table, dialogs, toast.
 - `src/hooks/` — drafts (`localStorage`), typed toasts, and the wallet state machine.
-- `src/lib/` — hash router, wallet helpers, clipboard, sample data, storage, formatting.
+- `src/lib/` — hash router, Studionet client (`genlayer.ts`), wallet helpers, clipboard, sample
+  data, storage, formatting.
 - `src/styles.css` — the design system, landing page, and workspace layout.
 
 Wallet handling keeps the wallet from popping up repeatedly: the app reads authorized accounts
@@ -36,13 +37,19 @@ wallet request (`-32002`) instead of retrying it, and offers a clearly labelled 
 no injected wallet exists (as in a preview webview). Errors are shown inline in the dialog and
 successes are confirmed with a toast.
 
-The dashboard is deliberately honest about its current scope:
+The dashboard talks to the contract on Studionet through `genlayer-js`:
 
-- The two evaluation rows are illustrative sample data; they are not live website checks.
-- Creating a case saves a draft in this browser's `localStorage` only; drafts can be deleted.
-- The prototype does not fetch submitted URLs, connect a wallet, call GenLayer RPC, or send a
-  transaction.
-- `contracts/spec_proof.py` is a contract draft, not a deployed or verified contract.
+- **Create on-chain case** deploys one SpecProof contract with the creator wallet — no fees on
+  Studionet, one wallet approval per deployment.
+- **Evaluate** is available only to the creator wallet; validators fetch the page and compare
+  every check. Closing the dialog before consensus finishes is safe: reopen it to read the
+  recorded result.
+- **Local draft** still exists for exploring the UI without a wallet; it is never deployed.
+- Reads (`get_spec`, `get_result`) need no wallet and run from the browser.
+- On-chain cases keep their contract address in this browser's `localStorage`; the contract is
+  the source of truth for the spec and the result.
+- Writes go through one provider-backed client and call `connect('studionet')` once, so a wallet
+  is never asked to sign or switch networks twice for the same action.
 
 ## Contract
 

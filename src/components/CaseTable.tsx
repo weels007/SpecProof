@@ -36,39 +36,56 @@ export function CaseTable({
             </button>
           </div>
         ) : (
-          cases.map((item) => (
-            <button
-              className="case-row"
-              type="button"
-              key={item.id}
-              aria-label={`Open ${item.title}`}
-              onClick={() => onOpenCase(item.id)}
-            >
-              <span className="case-identity">
-                <span
-                  className={`site-monogram ${
-                    item.status === 'draft' ? 'draft-mark' : item.tone ?? ''
-                  }`}
-                >
-                  {(item.mark ?? item.title.charAt(0)).toUpperCase()}
+          cases.map((item) => {
+            const isDraft = item.status === 'draft';
+            const isOnChain = item.status === 'onchain';
+            const statusClass = isDraft
+              ? 'status-pill draft'
+              : isOnChain
+                ? item.evaluated
+                  ? 'status-pill evaluated'
+                  : 'status-pill onchain'
+                : 'status-pill';
+            const statusLabel = isDraft
+              ? 'Draft'
+              : isOnChain
+                ? item.evaluated
+                  ? 'Evaluated'
+                  : 'On-chain'
+                : 'Example';
+
+            return (
+              <button
+                className="case-row"
+                type="button"
+                key={item.id}
+                aria-label={`Open ${item.title}`}
+                onClick={() => onOpenCase(item.id)}
+              >
+                <span className="case-identity">
+                  <span
+                    className={`site-monogram ${
+                      isDraft ? 'draft-mark' : isOnChain ? 'onchain-mark' : item.tone ?? ''
+                    }`}
+                  >
+                    {(item.mark ?? item.title.charAt(0)).toUpperCase()}
+                  </span>
+                  <span>
+                    <strong>{item.title}</strong>
+                    <small>{safeHost(item.url)}</small>
+                  </span>
                 </span>
-                <span>
-                  <strong>{item.title}</strong>
-                  <small>{safeHost(item.url)}</small>
+                <span className="criteria-count">{item.criteria.length} checks</span>
+                <span className={statusClass}>{statusLabel}</span>
+                <span className="case-date">
+                  {isDraft ? 'Just now' : item.updated ?? (isOnChain ? 'Studionet' : 'Example')}
                 </span>
-              </span>
-              <span className="criteria-count">{item.criteria.length} checks</span>
-              <span className={item.status === 'draft' ? 'status-pill draft' : 'status-pill'}>
-                {item.status === 'draft' ? 'Draft' : 'Example'}
-              </span>
-              <span className="case-date">
-                {item.status === 'draft' ? 'Just now' : item.updated ?? 'Example'}
-              </span>
-              <span className="row-chevron" aria-hidden="true">
-                ›
-              </span>
-            </button>
-          ))
+                <span className="row-chevron" aria-hidden="true">
+                  ›
+                </span>
+              </button>
+            );
+          })
         )}
       </div>
 

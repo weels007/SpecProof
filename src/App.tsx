@@ -10,6 +10,7 @@ import { useDrafts } from './hooks/useDrafts';
 import { useToast } from './hooks/useToast';
 import { useWallet } from './hooks/useWallet';
 import { createDraftId, safeHost } from './lib/format';
+import { chainErrorMessage, deployCase } from './lib/genlayer';
 import { navigateTo, routeTitle, useRoute } from './lib/router';
 import { SAMPLE_CASES } from './lib/samples';
 import { EvaluationsPage } from './pages/EvaluationsPage';
@@ -22,7 +23,7 @@ export default function App() {
   const route = useRoute();
   const wallet = useWallet();
   const { toast, show: showToast, dismiss: dismissToast } = useToast();
-  const { drafts, addDraft, deleteDraft } = useDrafts();
+  const { drafts, addDraft, deleteDraft, updateDraft } = useDrafts();
 
   const [walletOpen, setWalletOpen] = useState(false);
   const [creatingCase, setCreatingCase] = useState(false);
@@ -53,9 +54,49 @@ export default function App() {
   }, []);
 
   const handleCreate = useCallback(
-    (input: NewCaseInput): boolean => {
+    async (input: NewCaseInput): Promise<boolean> => {
       const host = safeHost(input.url);
       const displayName = input.title || `${host} delivery check`;
+
+      if (input.onChain) {
+        if (!wallet.address) {
+          showToast('Connect a wallet to deploy a case on Studionet.', 'error');
+          return false;
+        }
+
+        try {
+          const address = await deployCase(wallet.address, input.url, input.criteria);
+          const deployed: EvaluationCase = {
+            id: address,
+            title: displayName,
+            url: input.url,
+            criteria: input.criteria,
+            status: 'onchain',
+            address,
+            creator: wallet.address.toLowerCase(),
+            evaluated: false,
+            createdAt: new Date().toISOString(),
+            mark: displayName.charAt(0).toUpperCase(),
+          };
+
+          if (!addDraft(deployed)) {
+            showToast(
+              'The contract is deployed but could not be saved in this browser. Copy its address from the explorer.',
+              'error',
+            );
+            return false;
+          }
+
+          setCreatingCase(false);
+          showToast(`Case deployed on Studionet: ${address.slice(0, 8)}…`, 'success');
+          setDetailId(address);
+          return true;
+        } catch (error) {
+          showToast(chainErrorMessage(error), 'error');
+          return false;
+        }
+      }
+
       const draft: EvaluationCase = {
         id: createDraftId(),
         title: displayName,
@@ -79,7 +120,7 @@ export default function App() {
       setDetailId(draft.id);
       return true;
     },
-    [addDraft, showToast],
+    [addDraft, showToast, wallet.address],
   );
 
   const handleDelete = useCallback(
@@ -130,12 +171,19 @@ export default function App() {
         </AppLayout>
       )}
 
-      <NewCaseDialog open={creatingCase} onClose={() => setCreatingCase(false)} onCreate={handleCreate} />
+      <NewCaseDialog
+        open={creatingCase}
+        walletAddress={wallet.address}
+        onClose={() => setCreatingCase(false)}
+        onCreate={handleCreate}
+      />
       <CaseDetailDialog
         item={detailCase}
+        walletAddress={wallet.address}
         onClose={() => setDetailId(null)}
         onDelete={handleDelete}
         onNotify={showToast}
+        onChainEvaluated={(id) => updateDraft(id, { evaluated: true })}
       />
       <WalletDialog
         open={walletOpen}

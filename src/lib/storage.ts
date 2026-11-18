@@ -20,7 +20,10 @@ export function readDrafts(): EvaluationCase[] {
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isDraft).map((draft) => ({ ...draft, status: 'draft' as const }));
+    return parsed.filter(isDraft).map((draft) => ({
+      ...draft,
+      status: draft.status === 'onchain' ? 'onchain' : 'draft',
+    }));
   } catch {
     return [];
   }

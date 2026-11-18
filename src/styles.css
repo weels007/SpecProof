@@ -521,3 +521,22 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
   .lp-cta-actions { width: 100%; }
   .lp-cta-actions .button-lg { flex: 1 1 auto; }
 }
+
+
+/* On-chain case UI */
+.chain-option { display: flex; align-items: flex-start; gap: 10px; margin-top: 14px; padding: 12px; border: 1px solid #e4e9dd; border-radius: 8px; background: #fbfcf8; cursor: pointer; }
+.chain-option input { margin-top: 3px; accent-color: #3f7052; }
+.chain-option strong { display: block; font-size: 12px; }
+.chain-option small { display: block; margin-top: 3px; color: #8a958b; font-size: 10px; line-height: 1.5; }
+.chain-option--disabled { opacity: .6; cursor: not-allowed; }
+.site-monogram.onchain-mark { background: #e9f1ea; color: #3f6b4b; }
+.status-pill.onchain { background: #eef4ec; color: #4f7355; }
+.status-pill.onchain::before { background: #6f9e5c; }
+.status-pill.evaluated { background: #e5f0dd; color: #3d6a36; }
+.status-pill.evaluated::before { background: #4f8a3f; }
+.detail-address-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: -6px 0 14px; color: #7b887d; font-size: 10px; flex-wrap: wrap; }
+.detail-address-row code { color: #4b5b50; font-family: var(--mono); font-size: 10px; }
+.detail-note { margin: 12px 0 0; color: #8b968c; font-size: 11px; line-height: 1.6; }
+.detail-evaluate { margin-top: 14px; padding: 13px; border: 1px solid #d8e6cd; border-radius: 8px; background: #f7fbf2; }
+.detail-evaluate .button { width: 100%; justify-content: center; }
+.detail-evaluate p { margin: 9px 0 0; color: #7c8a7e; font-size: 10px; line-height: 1.6; }

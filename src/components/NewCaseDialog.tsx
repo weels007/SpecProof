@@ -21,11 +21,17 @@ function createCriterion(text: string): CriterionDraft {
 
 type NewCaseDialogProps = {
   open: boolean;
+  walletAddress: string | null;
   onClose: () => void;
-  onCreate: (input: NewCaseInput) => boolean;
+  onCreate: (input: NewCaseInput) => boolean | Promise<boolean>;
 };
 
-export function NewCaseDialog({ open, onClose, onCreate }: NewCaseDialogProps) {
+export function NewCaseDialog({
+  open,
+  walletAddress,
+  onClose,
+  onCreate,
+}: NewCaseDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const urlRef = useRef<HTMLInputElement>(null);
@@ -35,7 +41,11 @@ export function NewCaseDialog({ open, onClose, onCreate }: NewCaseDialogProps) {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [criteria, setCriteria] = useState<CriterionDraft[]>([createCriterion(DEFAULT_CRITERION)]);
+  const [onChain, setOnChain] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const connected = Boolean(walletAddress);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -45,7 +55,9 @@ export function NewCaseDialog({ open, onClose, onCreate }: NewCaseDialogProps) {
       setTitle('');
       setUrl('');
       setCriteria([createCriterion(DEFAULT_CRITERION)]);
+      setOnChain(false);
       setError(null);
+      setSubmitting(false);
       dialog.showModal();
       const timer = window.setTimeout(() => urlRef.current?.focus(), 40);
       return () => window.clearTimeout(timer);
@@ -102,8 +114,9 @@ export function NewCaseDialog({ open, onClose, onCreate }: NewCaseDialogProps) {
     if (criteria.length < MAX_CRITERIA) addCriterion();
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting) return;
 
     const trimmedUrl = url.trim();
     let parsedUrl: URL;
@@ -131,8 +144,23 @@ export function NewCaseDialog({ open, onClose, onCreate }: NewCaseDialogProps) {
       return;
     }
 
+    if (onChain && !connected) {
+      setError('Connect a wallet to deploy this case on Studionet.');
+      return;
+    }
+
     setError(null);
-    onCreate({ title: title.trim(), url: parsedUrl.href, criteria: cleanedCriteria });
+    setSubmitting(true);
+    try {
+      await onCreate({
+        title: title.trim(),
+        url: parsedUrl.href,
+        criteria: cleanedCriteria,
+        onChain,
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -158,7 +186,8 @@ export function NewCaseDialog({ open, onClose, onCreate }: NewCaseDialogProps) {
         </div>
         <h2 id="modal-title">Make “done” explicit.</h2>
         <p className="modal-intro">
-          Create a local draft with a public URL and checks that can be verified from the page.
+          Write a public URL and the checks you would argue about later. Deploy it to Studionet to
+          let independent validators decide.
         </p>
 
         <label className="field-label" htmlFor="case-title">
@@ -251,6 +280,23 @@ export function NewCaseDialog({ open, onClose, onCreate }: NewCaseDialogProps) {
           {criteria.length >= MAX_CRITERIA ? 'Six criteria is the maximum' : 'Add another criterion'}
         </button>
 
+        <label className={connected ? 'chain-option' : 'chain-option chain-option--disabled'}>
+          <input
+            type="checkbox"
+            checked={onChain}
+            disabled={!connected || submitting}
+            onChange={(event) => setOnChain(event.target.checked)}
+          />
+          <span>
+            <strong>Deploy on Studionet</strong>
+            <small>
+              {connected
+                ? 'Your wallet signs the deployment, so validators can record the result.'
+                : 'Connect a wallet first; then this case can be deployed on-chain.'}
+            </small>
+          </span>
+        </label>
+
         {error ? (
           <p className="form-error" role="alert">
             {error}
@@ -260,17 +306,24 @@ export function NewCaseDialog({ open, onClose, onCreate }: NewCaseDialogProps) {
         <div className="modal-note">
           <span aria-hidden="true">i</span>
           <p>
-            This saves a draft in your browser only. Live website checks, wallet connection, and
-            GenLayer submission are not connected in this prototype.
+            {onChain
+              ? 'Your wallet will deploy one SpecProof contract for this case. Nothing is charged on Studionet, and the contract rejects every evaluation but yours.'
+              : 'Without the on-chain option, this saves a draft in your browser only — no website is fetched and no transaction is sent.'}
           </p>
         </div>
 
         <div className="modal-actions">
-          <button className="button button-quiet" type="button" onClick={onClose}>
+          <button className="button button-quiet" type="button" onClick={onClose} disabled={submitting}>
             Cancel
           </button>
-          <button className="button button-primary" type="submit">
-            Save draft <span className="button-arrow" aria-hidden="true">↗</span>
+          <button className="button button-primary" type="submit" disabled={submitting}>
+            {submitting
+              ? onChain
+                ? 'Deploying contract…'
+                : 'Saving…'
+              : onChain
+                ? 'Deploy on Studionet ↗'
+                : 'Save draft ↗'}
           </button>
         </div>
       </form>

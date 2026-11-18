@@ -9,8 +9,9 @@ export function PrototypeAlert({ onDismiss }: PrototypeAlertProps) {
         i
       </span>
       <p>
-        <strong>Prototype mode.</strong> Drafts stay in this browser. No URL is fetched and no
-        GenLayer transaction is submitted yet.
+        <strong>Studionet is live.</strong> Deploy a case from your wallet to let validators record
+        it, or keep it as a local draft. Only the creator wallet can evaluate, and a result is
+        written once.
       </p>
       <button type="button" className="alert-dismiss" aria-label="Dismiss notice" onClick={onDismiss}>
         ×

@@ -33,5 +33,12 @@ export function useDrafts() {
     return true;
   }, []);
 
-  return { drafts, addDraft, deleteDraft };
+  const updateDraft = useCallback((id: string, patch: Partial<EvaluationCase>): boolean => {
+    const next = readDrafts().map((draft) => (draft.id === id ? { ...draft, ...patch } : draft));
+    if (!writeDrafts(next)) return false;
+    setDrafts(next);
+    return true;
+  }, []);
+
+  return { drafts, addDraft, deleteDraft, updateDraft };
 }

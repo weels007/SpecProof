@@ -3,7 +3,7 @@ export type CheckResult = {
   note: string;
 };
 
-export type CaseStatus = 'draft' | 'sample';
+export type CaseStatus = 'draft' | 'sample' | 'onchain';
 
 export type EvaluationCase = {
   id: string;
@@ -17,10 +17,15 @@ export type EvaluationCase = {
   createdAt?: string;
   mark?: string;
   tone?: string;
+  /** Studionet contract that holds this case, once deployed. */
+  address?: string;
+  creator?: string;
+  evaluated?: boolean;
 };
 
 export type NewCaseInput = {
   title: string;
   url: string;
   criteria: string[];
+  onChain: boolean;
 };
