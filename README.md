@@ -77,11 +77,38 @@ pytest tests/direct -v
 ```
 
 `tests/direct` runs in-memory with mocked web and LLM responses, including validator agreement
-and disagreement. `tests/integration` runs against a real network and is not part of CI:
+and disagreement. `tests/integration` runs against a real network and is not part of the push CI:
 
 ```bash
 gltest tests/integration -v --network studionet
 ```
+
+## Funded integration test (real wallet)
+
+`tests/integration` deploys the contract with a real wallet and checks the creator-only guard
+with a second wallet. Push CI stays fast; the **Integration (GenLayer)** workflow runs this on
+demand from the Actions tab.
+
+Repository secrets (Settings → Secrets and variables → Actions):
+
+- `ACCOUNT_PRIVATE_KEY_1` — the case creator and deployer. Needs testnet GEN on Bradbury for the
+  deploy and for the evaluation transaction.
+- `ACCOUNT_PRIVATE_KEY_2` — a separate wallet used as the adversarial caller. It only needs enough
+  GEN to send one reverting transaction. Without it, the outsider test is skipped.
+
+Nothing else is required: the Bradbury RPC and chain id come from `gltest`, and the network's own
+validators run the model, so no LLM or RPC keys are needed. For local runs, copy `.env.example` to
+`.env` (git-ignored) and fill in the keys.
+
+Rules:
+
+- Use a throwaway wallet funded only with testnet GEN, never a wallet with mainnet funds.
+- Never commit the key, paste it into a chat, or put it in `.env.example`.
+- `SPECPROOF_LIVE_EVALUATION=1` (a variable, not a secret) additionally runs a real web + LLM
+  evaluation, which costs fees and depends on validator agreement.
+
+SpecProof itself is not payable and holds no funds, so there is no escrow to drain or lock here —
+the only cost of an adversarial run is gas.
 
 ## Continuous integration
 

@@ -1,0 +1,52 @@
+name: Integration (GenLayer)
+
+on:
+  workflow_dispatch:
+    inputs:
+      network:
+        description: GenLayer network
+        type: choice
+        options:
+          - studionet
+          - testnet_bradbury
+        default: studionet
+      live_evaluation:
+        description: Run the real web + LLM evaluation (costs testnet fees)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-${{ inputs.network }}
+  cancel-in-progress: false
+
+jobs:
+  integration:
+    name: Integration (${{ inputs.network }})
+    runs-on: ubuntu-latest
+    env:
+      ACCOUNT_PRIVATE_KEY_1: ${{ secrets.ACCOUNT_PRIVATE_KEY_1 }}
+      ACCOUNT_PRIVATE_KEY_2: ${{ secrets.ACCOUNT_PRIVATE_KEY_2 }}
+      SPECPROOF_LIVE_EVALUATION: ${{ inputs.live_evaluation && '1' || '0' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Check required secrets
+        if: inputs.network == 'testnet_bradbury'
+        run: |
+          if [ -z "${ACCOUNT_PRIVATE_KEY_1}" ]; then
+            echo "Missing repository secret ACCOUNT_PRIVATE_KEY_1 (creator wallet)." >&2
+            exit 1
+          fi
+          if [ -z "${ACCOUNT_PRIVATE_KEY_2}" ]; then
+            echo "ACCOUNT_PRIVATE_KEY_2 is not set; the outsider test will be skipped."
+          fi
+      - name: Install GenLayer tooling
+        run: pip install -r requirements.txt
+      - name: Run integration tests
+        run: gltest tests/integration -v --network ${{ inputs.network }}

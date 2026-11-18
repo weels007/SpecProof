@@ -9,3 +9,8 @@ __pycache__/
 .DS_Store
 .vscode/
 .idea/
+
+
+# Test caches and generated artifacts
+.pytest_cache/
+artifacts/
