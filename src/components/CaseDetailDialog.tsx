@@ -186,6 +186,14 @@ export function CaseDetailDialog({
                     Evaluation tx ↗
                   </a>
                 ) : null}
+                <button
+                  className="detail-copy"
+                  type="button"
+                  disabled={chainLoading}
+                  onClick={() => item.address && void loadChainCase(item.address)}
+                >
+                  {chainLoading ? 'Refreshing…' : 'Refresh'}
+                </button>
               </div>
             ) : null}
 
