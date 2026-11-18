@@ -116,8 +116,9 @@ from `.env.example`; `KEYSTORE_PATH_1` is handy locally) and run:
 gltest tests/integration -v --network studionet
 ```
 
-`SPECPROOF_LIVE_EVALUATION=1` additionally runs a real web + LLM evaluation, which depends on
-validator agreement.
+`SPECPROOF_LIVE_EVALUATION=1` additionally runs the end-to-end scenario: an outsider wallet's
+`evaluate` is rejected, the creator's real web + LLM evaluation is recorded, and both parties'
+later attempts are rejected without changing the stored result.
 
 SpecProof itself is not payable and holds no funds, so there is nothing to drain or lock here.
 

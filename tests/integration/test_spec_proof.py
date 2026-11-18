@@ -227,20 +227,38 @@ def test_outsider_cannot_evaluate(test_wallets):
 
 @pytest.mark.skipif(
     os.environ.get("SPECPROOF_LIVE_EVALUATION", "0") != "1",
-    reason="Set SPECPROOF_LIVE_EVALUATION=1 to run a priced web + LLM evaluation",
+    reason="Set SPECPROOF_LIVE_EVALUATION=1 to run a live web + LLM evaluation",
 )
-def test_live_evaluation_records_outcome(test_wallets):
-    creator, _ = test_wallets
+def test_end_to_end_creator_evaluates_after_outsider_attempt(test_wallets):
+    creator, outsider = test_wallets
+    if outsider is None:
+        pytest.skip("Set a second wallet (KEYSTORE_2 or ACCOUNT_PRIVATE_KEY_2)")
+
     factory = get_contract_factory("SpecProof")
     contract = _deploy(factory, creator)
 
+    # Adversarial step 1: an outsider cannot consume the one evaluation.
+    outsider_receipt = _send(contract.connect(outsider).evaluate())
+    assert tx_execution_failed(outsider_receipt)
+    assert json.loads(contract.get_spec().call())["evaluated"] is False
+
+    # E2E: the creator runs the real web render + LLM consensus.
     first = _send(contract.evaluate(), LIVE_WAIT)
     assert tx_execution_succeeded(first)
+
+    spec = json.loads(contract.get_spec().call())
+    assert spec["evaluated"] is True
 
     result = json.loads(contract.get_result().call())
     assert isinstance(result["all_passed"], bool)
     assert [check["id"] for check in result["checks"]] == ["C1", "C2"]
+    assert all(isinstance(check["passed"], bool) for check in result["checks"])
 
-    # A recorded outcome cannot be evaluated a second time.
-    second = _send(contract.evaluate(), LIVE_WAIT)
-    assert tx_execution_failed(second)
+    # Adversarial step 2: neither party can replace the recorded outcome.
+    outsider_again = _send(contract.connect(outsider).evaluate())
+    assert tx_execution_failed(outsider_again)
+    creator_again = _send(contract.evaluate())
+    assert tx_execution_failed(creator_again)
+
+    # Rejected attempts left the stored record untouched.
+    assert json.loads(contract.get_result().call()) == result
