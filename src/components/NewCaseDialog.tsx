@@ -41,7 +41,6 @@ export function NewCaseDialog({
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [criteria, setCriteria] = useState<CriterionDraft[]>([createCriterion(DEFAULT_CRITERION)]);
-  const [onChain, setOnChain] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -55,7 +54,6 @@ export function NewCaseDialog({
       setTitle('');
       setUrl('');
       setCriteria([createCriterion(DEFAULT_CRITERION)]);
-      setOnChain(false);
       setError(null);
       setSubmitting(false);
       dialog.showModal();
@@ -144,8 +142,8 @@ export function NewCaseDialog({
       return;
     }
 
-    if (onChain && !connected) {
-      setError('Connect a wallet to deploy this case on Studionet.');
+    if (!connected) {
+      setError('Connect a wallet to open this case in the registry.');
       return;
     }
 
@@ -156,7 +154,6 @@ export function NewCaseDialog({
         title: title.trim(),
         url: parsedUrl.href,
         criteria: cleanedCriteria,
-        onChain,
       });
     } finally {
       setSubmitting(false);
@@ -186,8 +183,8 @@ export function NewCaseDialog({
         </div>
         <h2 id="modal-title">Make “done” explicit.</h2>
         <p className="modal-intro">
-          Write a public URL and the checks you would argue about later. Deploy it to Studionet to
-          let independent validators decide.
+          Write a public URL and the checks you would argue about later. The case goes into the
+          SpecProof registry on Studionet, where independent validators decide.
         </p>
 
         <label className="field-label" htmlFor="case-title">
@@ -198,7 +195,7 @@ export function NewCaseDialog({
           id="case-title"
           name="title"
           type="text"
-          maxLength={64}
+          maxLength={80}
           placeholder="e.g. Spring campaign landing page"
           value={title}
           onChange={(event) => {
@@ -280,23 +277,6 @@ export function NewCaseDialog({
           {criteria.length >= MAX_CRITERIA ? 'Six criteria is the maximum' : 'Add another criterion'}
         </button>
 
-        <label className={connected ? 'chain-option' : 'chain-option chain-option--disabled'}>
-          <input
-            type="checkbox"
-            checked={onChain}
-            disabled={!connected || submitting}
-            onChange={(event) => setOnChain(event.target.checked)}
-          />
-          <span>
-            <strong>Deploy on Studionet</strong>
-            <small>
-              {connected
-                ? 'Your wallet signs the deployment, so validators can record the result.'
-                : 'Connect a wallet first; then this case can be deployed on-chain.'}
-            </small>
-          </span>
-        </label>
-
         {error ? (
           <p className="form-error" role="alert">
             {error}
@@ -306,9 +286,9 @@ export function NewCaseDialog({
         <div className="modal-note">
           <span aria-hidden="true">i</span>
           <p>
-            {onChain
-              ? 'Your wallet will deploy one SpecProof contract for this case. Nothing is charged on Studionet, and the contract rejects every evaluation but yours.'
-              : 'Without the on-chain option, this saves a draft in your browser only — no website is fetched and no transaction is sent.'}
+            {connected
+              ? 'This writes one case to the SpecProof registry on Studionet. Nothing is charged, and only the wallet that opened the case can start its evaluation.'
+              : 'Connect a wallet first; a case is a transaction, not a local draft.'}
           </p>
         </div>
 
@@ -317,13 +297,7 @@ export function NewCaseDialog({
             Cancel
           </button>
           <button className="button button-primary" type="submit" disabled={submitting}>
-            {submitting
-              ? onChain
-                ? 'Deploying contract…'
-                : 'Saving…'
-              : onChain
-                ? 'Deploy on Studionet ↗'
-                : 'Save draft ↗'}
+            {submitting ? 'Waiting for consensus…' : 'Open case on Studionet ↗'}
           </button>
         </div>
       </form>

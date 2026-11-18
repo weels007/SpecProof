@@ -3,31 +3,30 @@ export type CheckResult = {
   note: string;
 };
 
-export type CaseStatus = 'draft' | 'sample' | 'onchain';
+export type CaseStatus = 'sample' | 'onchain';
 
 export type EvaluationCase = {
   id: string;
   title: string;
   url: string;
   criteria: string[];
+  /** From the registry list, which does not carry the full rubric. */
+  criteriaCount?: number;
   checks?: CheckResult[];
   status: CaseStatus;
-  label?: string;
   updated?: string;
   createdAt?: string;
   mark?: string;
   tone?: string;
-  /** Studionet contract that holds this case, once deployed. */
-  address?: string;
-  /** Deployment transaction hash, for the explorer link. */
-  deployTx?: string;
+  /** Case id inside the SpecProof registry, once the case lives on Studionet. */
+  caseId?: string;
   creator?: string;
   evaluated?: boolean;
+  passedCount?: number;
 };
 
 export type NewCaseInput = {
   title: string;
   url: string;
   criteria: string[];
-  onChain: boolean;
 };

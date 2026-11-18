@@ -3,11 +3,14 @@
 import json
 from genlayer import *
 
+MAX_CASES = 500
+MAX_TITLE_CHARS = 80
 MAX_CRITERIA = 6
 MAX_CRITERION_CHARS = 180
 MAX_CRITERIA_TOTAL_CHARS = 1200
 MAX_URL_CHARS = 512
 MAX_HTML_CHARS = 12000
+MAX_LIST_LIMIT = 50
 
 PRIVATE_HOST_SUFFIXES = (".local", ".internal", ".localhost", ".home.arpa")
 
@@ -100,6 +103,15 @@ def _validated_url(site_url: str) -> str:
     return url
 
 
+def _validated_title(title: str) -> str:
+    cleaned = " ".join(title.split())
+    if not cleaned:
+        raise gl.vm.UserError("A case name is required")
+    if len(cleaned) > MAX_TITLE_CHARS:
+        raise gl.vm.UserError("The case name must be at most 80 characters")
+    return cleaned
+
+
 def _validated_criteria(criteria: list[str]) -> None:
     """Cap rubric size so the evaluator prompt stays bounded and unambiguous."""
     if not 1 <= len(criteria) <= MAX_CRITERIA:
@@ -121,46 +133,70 @@ def _validated_criteria(criteria: list[str]) -> None:
 
 
 class SpecProof(gl.Contract):
-    creator: Address
-    site_url: str
-    criteria_text: str
-    criteria_json: str
-    outcome_json: str
-    evaluated: bool
+    """One registry for every case: deploy once, then create and evaluate by id."""
 
-    def __init__(self, site_url: str, criteria_text: str):
-        self.creator = gl.message.sender_address
-        self.site_url = site_url.strip()
-        self.criteria_text = criteria_text
-        self.criteria_json = json.dumps(_normalize_criteria(criteria_text))
-        self.outcome_json = "{}"
-        self.evaluated = False
+    total_cases: u256
+    records: TreeMap[str, str]
 
-    def _stored_criteria(self) -> list[str]:
+    def _read_record(self, case_id: str) -> str:
+        raw = self.records.get(str(case_id).strip(), "")
+        if not raw:
+            raise gl.vm.UserError("Unknown case")
+        return raw
+
+    def _load(self, case_id: str) -> dict:
+        raw = self._read_record(case_id)
         try:
-            stored = json.loads(self.criteria_json)
+            case = json.loads(raw)
         except Exception:
-            raise gl.vm.UserError("The stored acceptance criteria are unreadable")
+            raise gl.vm.UserError("The stored case is unreadable")
+        if not isinstance(case, dict):
+            raise gl.vm.UserError("The stored case is unreadable")
+        return case
 
-        if not isinstance(stored, list):
-            raise gl.vm.UserError("The stored acceptance criteria are unreadable")
+    def _save(self, case: dict) -> None:
+        self.records[str(case["id"])] = json.dumps(case, sort_keys=True)
 
-        criteria = []
-        for item in stored:
-            if not isinstance(item, str):
-                raise gl.vm.UserError("The stored acceptance criteria are unreadable")
-            criteria.append(item)
-        return criteria
+    def _make_id(self) -> str:
+        count = int(self.total_cases)
+        if count >= MAX_CASES:
+            raise gl.vm.UserError("The case registry is full")
+        return str(count + 1)
 
     @gl.public.write
-    def evaluate(self) -> None:
-        if self.evaluated:
+    def create_case(self, title: str, site_url: str, criteria_text: str) -> str:
+        name = _validated_title(title)
+        url = _validated_url(site_url)
+        criteria = _normalize_criteria(criteria_text)
+        _validated_criteria(criteria)
+
+        case_id = self._make_id()
+        self._save(
+            {
+                "id": case_id,
+                "creator": gl.message.sender_address.as_hex,
+                "title": name,
+                "site_url": url,
+                "criteria": criteria,
+                "criteria_text": criteria_text,
+                "evaluated": False,
+                "outcome": {},
+            }
+        )
+        self.total_cases = u256(int(self.total_cases) + 1)
+        return case_id
+
+    @gl.public.write
+    def evaluate(self, case_id: str) -> None:
+        case = self._load(case_id)
+
+        if case["evaluated"]:
             raise gl.vm.UserError("This evaluation is already recorded")
-        if gl.message.sender_address != self.creator:
+        if gl.message.sender_address.as_hex.lower() != str(case["creator"]).lower():
             raise gl.vm.UserError("Only the case creator can record this evaluation")
 
-        site_url = _validated_url(self.site_url)
-        criteria = self._stored_criteria()
+        site_url = _validated_url(str(case["site_url"]))
+        criteria = [str(criterion) for criterion in case["criteria"]]
         _validated_criteria(criteria)
 
         def read_decision() -> dict:
@@ -237,28 +273,59 @@ class SpecProof(gl.Contract):
             {"id": check["id"], "passed": check["passed"]}
             for check in decision["checks"]
         ]
-        self.outcome_json = json.dumps(
-            {
-                "all_passed": all(check["passed"] for check in checks),
-                "checks": checks,
-            },
-            sort_keys=True,
-        )
-        self.evaluated = True
+        case["outcome"] = {
+            "all_passed": all(check["passed"] for check in checks),
+            "checks": checks,
+        }
+        case["evaluated"] = True
+        self._save(case)
 
     @gl.public.view
-    def get_result(self) -> str:
-        return self.outcome_json
-
-    @gl.public.view
-    def get_spec(self) -> str:
+    def get_case(self, case_id: str) -> str:
+        case = self._load(case_id)
         return json.dumps(
             {
-                "creator": self.creator.as_hex,
-                "criteria": self._stored_criteria(),
-                "criteria_text": self.criteria_text,
-                "evaluated": self.evaluated,
-                "site_url": self.site_url,
+                "id": case["id"],
+                "creator": case["creator"],
+                "title": case["title"],
+                "site_url": case["site_url"],
+                "criteria": case["criteria"],
+                "criteria_text": case["criteria_text"],
+                "evaluated": case["evaluated"],
             },
             sort_keys=True,
         )
+
+    @gl.public.view
+    def get_result(self, case_id: str) -> str:
+        return json.dumps(self._load(case_id).get("outcome", {}), sort_keys=True)
+
+    @gl.public.view
+    def case_count(self) -> str:
+        return str(int(self.total_cases))
+
+    @gl.public.view
+    def list_cases(self) -> str:
+        """Newest cases first, as summaries the app can render in one read."""
+        count = int(self.total_cases)
+        cap = MAX_LIST_LIMIT
+
+        summaries = []
+        index = count
+        while index > 0 and len(summaries) < cap:
+            case = self._load(str(index))
+            checks = case["outcome"].get("checks", []) if case["evaluated"] else []
+            summaries.append(
+                {
+                    "id": case["id"],
+                    "creator": case["creator"],
+                    "title": case["title"],
+                    "site_url": case["site_url"],
+                    "evaluated": bool(case["evaluated"]),
+                    "criteria_count": len(case["criteria"]),
+                    "passed_count": len([check for check in checks if check.get("passed")]),
+                }
+            )
+            index -= 1
+
+        return json.dumps(summaries, sort_keys=True)

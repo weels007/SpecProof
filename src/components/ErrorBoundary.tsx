@@ -36,8 +36,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           </span>
           <h1>Something broke.</h1>
           <p>
-            The workspace hit an unexpected error. Drafts stay in this browser, so reloading is
-            safe.
+            The workspace hit an unexpected error. Cases live in the registry on Studionet, so
+            reloading is safe.
           </p>
           <pre className="crash-detail">{error.message}</pre>
           <button className="button button-primary" type="button" onClick={this.handleReload}>

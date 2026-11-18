@@ -7,7 +7,7 @@ import { TopBar } from './TopBar';
 type AppLayoutProps = {
   route: RouteName;
   wallet: WalletState;
-  draftCount: number;
+  caseCount: number;
   onOpenWallet: () => void;
   onNewCase: () => void;
   children: ReactNode;
@@ -16,7 +16,7 @@ type AppLayoutProps = {
 export function AppLayout({
   route,
   wallet,
-  draftCount,
+  caseCount,
   onOpenWallet,
   onNewCase,
   children,
@@ -26,7 +26,7 @@ export function AppLayout({
       <Sidebar
         route={route}
         wallet={wallet}
-        draftCount={draftCount}
+        caseCount={caseCount}
         onOpenWallet={onOpenWallet}
         onNewCase={onNewCase}
       />

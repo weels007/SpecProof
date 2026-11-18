@@ -9,7 +9,3 @@ export function safeHost(url: string): string {
     return url;
   }
 }
-
-export function createDraftId(): string {
-  return `draft-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}

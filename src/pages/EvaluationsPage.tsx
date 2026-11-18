@@ -1,23 +1,35 @@
 import { useMemo, useState } from 'react';
 import { CaseTable } from '../components/CaseTable';
 import { pad2 } from '../lib/format';
-import { SAMPLE_CASES } from '../lib/samples';
 import type { EvaluationCase } from '../types';
 
 type EvaluationsPageProps = {
-  drafts: EvaluationCase[];
+  cases: EvaluationCase[];
+  loading: boolean;
+  error: string | null;
   onOpenCase: (id: string) => void;
   onNewCase: () => void;
+  onRefresh: () => void;
 };
 
-type Tab = 'all' | 'drafts';
+type Tab = 'all' | 'pending';
 
-export function EvaluationsPage({ drafts, onOpenCase, onNewCase }: EvaluationsPageProps) {
+export function EvaluationsPage({
+  cases,
+  loading,
+  error,
+  onOpenCase,
+  onNewCase,
+  onRefresh,
+}: EvaluationsPageProps) {
   const [tab, setTab] = useState<Tab>('all');
   const [query, setQuery] = useState('');
 
-  const allCases = useMemo(() => [...drafts, ...SAMPLE_CASES], [drafts]);
-  const base = tab === 'drafts' ? drafts : allCases;
+  const pending = useMemo(
+    () => cases.filter((item) => item.status === 'onchain' && !item.evaluated),
+    [cases],
+  );
+  const base = tab === 'pending' ? pending : cases;
   const needle = query.trim().toLowerCase();
   const visible = needle
     ? base.filter((item) =>
@@ -32,15 +44,20 @@ export function EvaluationsPage({ drafts, onOpenCase, onNewCase }: EvaluationsPa
       <header className="eval-head">
         <div>
           <div className="section-kicker">EVALUATIONS</div>
-          <h1>Every case, one list.</h1>
+          <h1>Every case, one registry.</h1>
           <p>
-            Drafts live in this browser. Sample rows are labelled as examples so a demo never looks
-            like a live check.
+            Cases are read from the SpecProof contract on Studionet. Sample rows are labelled as
+            examples so a demo never looks like a live check.
           </p>
         </div>
-        <button className="button button-primary button-lg" type="button" onClick={onNewCase}>
-          New evaluation <span aria-hidden="true">↗</span>
-        </button>
+        <div className="heading-actions">
+          <button className="button button-quiet" type="button" disabled={loading} onClick={onRefresh}>
+            {loading ? 'Refreshing…' : 'Refresh'}
+          </button>
+          <button className="button button-primary button-lg" type="button" onClick={onNewCase}>
+            New evaluation <span aria-hidden="true">↗</span>
+          </button>
+        </div>
       </header>
 
       <div className="eval-toolbar">
@@ -50,14 +67,14 @@ export function EvaluationsPage({ drafts, onOpenCase, onNewCase }: EvaluationsPa
             type="button"
             onClick={() => setTab('all')}
           >
-            All cases <span>{pad2(allCases.length)}</span>
+            All cases <span>{pad2(cases.length)}</span>
           </button>
           <button
-            className={tab === 'drafts' ? 'list-tab active' : 'list-tab'}
+            className={tab === 'pending' ? 'list-tab active' : 'list-tab'}
             type="button"
-            onClick={() => setTab('drafts')}
+            onClick={() => setTab('pending')}
           >
-            My drafts <span>{pad2(drafts.length)}</span>
+            Pending <span>{pad2(pending.length)}</span>
           </button>
         </div>
         <div className="eval-search">
@@ -75,6 +92,12 @@ export function EvaluationsPage({ drafts, onOpenCase, onNewCase }: EvaluationsPa
         </div>
       </div>
 
+      {error ? (
+        <p className="wallet-alert wallet-alert--error" role="alert">
+          {error}
+        </p>
+      ) : null}
+
       <CaseTable
         cases={visible}
         onOpenCase={onOpenCase}
@@ -83,15 +106,15 @@ export function EvaluationsPage({ drafts, onOpenCase, onNewCase }: EvaluationsPa
         emptyBody={
           needle
             ? 'Try a different word, or clear the search to see every case.'
-            : tab === 'drafts'
-              ? 'You have no local drafts yet. Create one and it will appear here.'
-              : 'Create an evaluation to start a local case.'
+            : tab === 'pending'
+              ? 'Every open case already has a recorded result.'
+              : 'Open a case and it will be recorded in the registry for everyone to read.'
         }
       />
 
       <p className="eval-footnote">
-        Sample records are illustrative and are never fetched from a website. Drafts are saved in
-        this browser only.
+        Cases come from the SpecProof registry on Studionet. Sample records are illustrative and are
+        never fetched from a website.
       </p>
     </>
   );

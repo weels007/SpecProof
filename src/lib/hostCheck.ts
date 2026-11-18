@@ -1,5 +1,5 @@
 /**
- * Mirrors the contract's URL guard so a draft cannot be created for a host
+ * Mirrors the contract's URL guard so a case cannot be opened for a host
  * the evaluation would refuse: credentials, local names, loopback, private,
  * link-local and shared address ranges.
  */

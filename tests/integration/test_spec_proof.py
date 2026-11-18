@@ -1,13 +1,15 @@
-"""Integration tests on Studionet with real wallets.
+"""Integration tests on Studionet with real wallets, against the SpecProof registry.
 
     gltest tests/integration -v --network studionet
+
+The suite deploys the registry once and then exercises it through real wallets:
+opening cases, reads, an outsider's rejected evaluation, invalid specs that must
+revert, and — with `SPECPROOF_LIVE_EVALUATION=1` — a real web render plus a real
+validator consensus run.
 
 A wallet is resolved from KEYSTORE_<label> (+ KEYSTORE_PASSWORD_<label>), or
 from ACCOUNT_PRIVATE_KEY_<label>; without either, the network's configured
 accounts are used. Studionet is gasless.
-
-The live evaluation (real web render + real validators) only runs when
-`SPECPROOF_LIVE_EVALUATION=1`, because it depends on validator agreement.
 """
 
 import base64
@@ -25,6 +27,7 @@ from gltest.assertions import tx_execution_failed, tx_execution_succeeded
 
 pytestmark = pytest.mark.integration
 
+TITLE = "Example delivery check"
 SITE_URL = "https://example.com"
 CRITERIA = "\n".join(
     [
@@ -156,23 +159,19 @@ def _fee_arguments(callable_obj) -> dict:
     return {"fees": fees} if fees else {}
 
 
-def _deploy_case(factory, account, site_url, criteria):
-    contract = factory.deploy(
-        args=[site_url, criteria],
-        account=account,
-        **WAIT,
-        **_fee_arguments(factory.deploy),
-    )
-    print(f"[integration] contract {contract.address} for {site_url}")
-    return contract
-
-
-def _deploy(factory, account):
-    return _deploy_case(factory, account, SITE_URL, CRITERIA)
-
-
 def _send(handle, wait=None):
     return handle.transact(**(wait or WAIT), **_fee_arguments(handle.transact))
+
+
+def _count(contract) -> int:
+    return int(contract.case_count().call())
+
+
+def _open_case(contract, account, title=TITLE, url=SITE_URL, criteria=CRITERIA):
+    """Open a case and return (receipt, id), using the registry's own counter."""
+    before = _count(contract)
+    receipt = _send(contract.connect(account).create_case(title, url, criteria))
+    return receipt, str(before + 1)
 
 
 @pytest.fixture(scope="session")
@@ -202,87 +201,104 @@ def test_wallets() -> tuple[LocalAccount, LocalAccount | None]:
     return creator, outsider
 
 
-def test_deploy_and_read_spec(test_wallets):
+@pytest.fixture(scope="session")
+def registry(test_wallets):
+    """Deploy the one contract every test uses; print its address for the frontend."""
     creator, _ = test_wallets
     factory = get_contract_factory("SpecProof")
-    contract = _deploy(factory, creator)
+    contract = factory.deploy(
+        args=[],
+        account=creator,
+        **WAIT,
+        **_fee_arguments(factory.deploy),
+    )
+    print(f"[integration] registry {contract.address}")
+    return contract
 
-    spec = json.loads(contract.get_spec().call())
 
+def test_deploy_and_open_a_case(registry, test_wallets):
+    creator, _ = test_wallets
+
+    receipt, case_id = _open_case(registry, creator)
+    assert tx_execution_succeeded(receipt)
+
+    spec = json.loads(registry.get_case(case_id).call())
+
+    assert spec["id"] == case_id
+    assert spec["title"] == TITLE
     assert spec["site_url"] == SITE_URL
     assert spec["criteria"] == CRITERIA.split("\n")
     assert spec["evaluated"] is False
     assert spec["creator"].lower() == creator.address.lower()
-    assert json.loads(contract.get_result().call()) == {}
+    assert json.loads(registry.get_result(case_id).call()) == {}
 
 
-def test_outsider_cannot_evaluate(test_wallets):
+def test_outsider_cannot_evaluate(registry, test_wallets):
     creator, outsider = test_wallets
     if outsider is None:
         pytest.skip("Set a second wallet (KEYSTORE_2 or ACCOUNT_PRIVATE_KEY_2)")
 
-    factory = get_contract_factory("SpecProof")
-    contract = _deploy(factory, creator)
+    _, case_id = _open_case(registry, creator)
 
-    receipt = _send(contract.connect(outsider).evaluate())
+    receipt = _send(registry.connect(outsider).evaluate(case_id))
     assert tx_execution_failed(receipt)
 
-    spec = json.loads(contract.get_spec().call())
-    assert spec["evaluated"] is False
+    assert json.loads(registry.get_case(case_id).call())["evaluated"] is False
 
 
-def test_rejects_invalid_specs_on_chain(test_wallets):
+def test_rejects_invalid_specs_on_chain(registry, test_wallets):
     creator, _ = test_wallets
-    factory = get_contract_factory("SpecProof")
+    before = _count(registry)
     repeated = CRITERIA.splitlines()[0]
 
     invalid_cases = [
-        ("http://127.0.0.1/admin", CRITERIA, "private host"),
-        (SITE_URL, f"{repeated}\n{repeated}", "duplicate criteria"),
-        (SITE_URL, "A" * 181, "overlong criterion"),
+        (TITLE, "http://127.0.0.1/admin", CRITERIA, "private host"),
+        (TITLE, SITE_URL, f"{repeated}\n{repeated}", "duplicate criteria"),
+        (TITLE, SITE_URL, "A" * 181, "overlong criterion"),
+        ("   ", SITE_URL, CRITERIA, "missing case name"),
     ]
 
-    for site_url, criteria, label in invalid_cases:
-        contract = _deploy_case(factory, creator, site_url, criteria)
-        receipt = _send(contract.evaluate())
+    for title, site_url, criteria, label in invalid_cases:
+        receipt = _send(registry.connect(creator).create_case(title, site_url, criteria))
         assert tx_execution_failed(receipt), label
-        assert json.loads(contract.get_spec().call())["evaluated"] is False
+
+    assert _count(registry) == before
 
 
 @pytest.mark.skipif(
     os.environ.get("SPECPROOF_LIVE_EVALUATION", "0") != "1",
     reason="Set SPECPROOF_LIVE_EVALUATION=1 to run a live web + LLM evaluation",
 )
-def test_end_to_end_creator_evaluates_after_outsider_attempt(test_wallets):
+def test_end_to_end_creator_evaluates_after_outsider_attempt(registry, test_wallets):
     creator, outsider = test_wallets
     if outsider is None:
         pytest.skip("Set a second wallet (KEYSTORE_2 or ACCOUNT_PRIVATE_KEY_2)")
 
-    factory = get_contract_factory("SpecProof")
-    contract = _deploy(factory, creator)
+    receipt, case_id = _open_case(registry, creator)
+    assert tx_execution_succeeded(receipt)
 
     # Adversarial step 1: an outsider cannot consume the one evaluation.
-    outsider_receipt = _send(contract.connect(outsider).evaluate())
+    outsider_receipt = _send(registry.connect(outsider).evaluate(case_id))
     assert tx_execution_failed(outsider_receipt)
-    assert json.loads(contract.get_spec().call())["evaluated"] is False
+    assert json.loads(registry.get_case(case_id).call())["evaluated"] is False
 
     # E2E: the creator runs the real web render + LLM consensus.
-    first = _send(contract.evaluate(), LIVE_WAIT)
+    first = _send(registry.connect(creator).evaluate(case_id), LIVE_WAIT)
     assert tx_execution_succeeded(first)
 
-    spec = json.loads(contract.get_spec().call())
+    spec = json.loads(registry.get_case(case_id).call())
     assert spec["evaluated"] is True
 
-    result = json.loads(contract.get_result().call())
+    result = json.loads(registry.get_result(case_id).call())
     assert isinstance(result["all_passed"], bool)
     assert [check["id"] for check in result["checks"]] == ["C1", "C2"]
     assert all(isinstance(check["passed"], bool) for check in result["checks"])
 
     # Adversarial step 2: neither party can replace the recorded outcome.
-    outsider_again = _send(contract.connect(outsider).evaluate())
+    outsider_again = _send(registry.connect(outsider).evaluate(case_id))
     assert tx_execution_failed(outsider_again)
-    creator_again = _send(contract.evaluate())
+    creator_again = _send(registry.connect(creator).evaluate(case_id))
     assert tx_execution_failed(creator_again)
 
     # Rejected attempts left the stored record untouched.
-    assert json.loads(contract.get_result().call()) == result
+    assert json.loads(registry.get_result(case_id).call()) == result

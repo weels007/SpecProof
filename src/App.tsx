@@ -6,24 +6,24 @@ import { MarketingLayout } from './components/MarketingLayout';
 import { NewCaseDialog } from './components/NewCaseDialog';
 import { Toast } from './components/Toast';
 import { WalletDialog } from './components/WalletDialog';
-import { useDrafts } from './hooks/useDrafts';
+import { useCases } from './hooks/useCases';
 import { useToast } from './hooks/useToast';
 import { useWallet } from './hooks/useWallet';
-import { createDraftId, safeHost } from './lib/format';
-import { chainErrorMessage, deployCase } from './lib/genlayer';
+import { safeHost } from './lib/format';
+import { chainErrorMessage, createCase } from './lib/genlayer';
 import { navigateTo, routeTitle, useRoute } from './lib/router';
 import { SAMPLE_CASES } from './lib/samples';
 import { EvaluationsPage } from './pages/EvaluationsPage';
 import { HowItWorksPage } from './pages/HowItWorksPage';
 import { LandingPage } from './pages/LandingPage';
 import { WorkspacePage } from './pages/WorkspacePage';
-import type { EvaluationCase, NewCaseInput } from './types';
+import type { NewCaseInput } from './types';
 
 export default function App() {
   const route = useRoute();
   const wallet = useWallet();
   const { toast, show: showToast, dismiss: dismissToast } = useToast();
-  const { drafts, addDraft, deleteDraft, updateDraft } = useDrafts();
+  const { cases, loading: casesLoading, error: casesError, refresh: refreshCases } = useCases();
 
   const [walletOpen, setWalletOpen] = useState(false);
   const [creatingCase, setCreatingCase] = useState(false);
@@ -45,7 +45,8 @@ export default function App() {
     setStartRequested(false);
   }, [route, startRequested]);
 
-  const allCases = useMemo(() => [...drafts, ...SAMPLE_CASES], [drafts]);
+  // Sample rows stand in only while the registry returns nothing.
+  const allCases = useMemo(() => (cases.length > 0 ? cases : SAMPLE_CASES), [cases]);
   const detailCase = detailId ? allCases.find((item) => item.id === detailId) ?? null : null;
 
   const handleStart = useCallback(() => {
@@ -53,87 +54,39 @@ export default function App() {
     navigateTo('workspace');
   }, []);
 
+  const handleRefresh = useCallback(() => {
+    void refreshCases();
+  }, [refreshCases]);
+
   const handleCreate = useCallback(
     async (input: NewCaseInput): Promise<boolean> => {
-      const host = safeHost(input.url);
-      const displayName = input.title || `${host} delivery check`;
-
-      if (input.onChain) {
-        if (!wallet.address) {
-          showToast('Connect a wallet to deploy a case on Studionet.', 'error');
-          return false;
-        }
-
-        try {
-          const { address, txHash } = await deployCase(wallet.address, input.url, input.criteria);
-          const deployed: EvaluationCase = {
-            id: address,
-            title: displayName,
-            url: input.url,
-            criteria: input.criteria,
-            status: 'onchain',
-            address,
-            deployTx: txHash,
-            creator: wallet.address.toLowerCase(),
-            evaluated: false,
-            createdAt: new Date().toISOString(),
-            mark: displayName.charAt(0).toUpperCase(),
-          };
-
-          if (!addDraft(deployed)) {
-            showToast(
-              'The contract is deployed but could not be saved in this browser. Copy its address from the explorer.',
-              'error',
-            );
-            return false;
-          }
-
-          setCreatingCase(false);
-          showToast(`Case deployed on Studionet: ${address.slice(0, 8)}…`, 'success');
-          setDetailId(address);
-          return true;
-        } catch (error) {
-          showToast(chainErrorMessage(error), 'error');
-          return false;
-        }
-      }
-
-      const draft: EvaluationCase = {
-        id: createDraftId(),
-        title: displayName,
-        url: input.url,
-        criteria: input.criteria,
-        status: 'draft',
-        createdAt: new Date().toISOString(),
-        mark: displayName.charAt(0).toUpperCase(),
-      };
-
-      if (!addDraft(draft)) {
-        showToast(
-          'Could not save this draft. Browser storage is full or blocked — free some space and try again.',
-          'error',
-        );
+      if (!wallet.address) {
+        showToast('Connect a wallet to open a case on Studionet.', 'error');
         return false;
       }
 
-      setCreatingCase(false);
-      showToast('Draft saved in this browser. No website was checked.', 'success');
-      setDetailId(draft.id);
-      return true;
-    },
-    [addDraft, showToast, wallet.address],
-  );
+      const host = safeHost(input.url);
+      const displayName = (input.title || `${host} delivery check`).slice(0, 80);
 
-  const handleDelete = useCallback(
-    (id: string) => {
-      if (!deleteDraft(id)) {
-        showToast('Could not delete this draft. Browser storage is blocked.', 'error');
-        return;
+      try {
+        const { caseId } = await createCase(wallet.address, displayName, input.url, input.criteria);
+        await refreshCases();
+        setCreatingCase(false);
+
+        if (caseId) {
+          showToast('Case opened in the SpecProof registry.', 'success');
+          setDetailId(caseId);
+        } else {
+          showToast('Case opened on Studionet. Refresh the list to see it.', 'success');
+        }
+
+        return true;
+      } catch (error) {
+        showToast(chainErrorMessage(error), 'error');
+        return false;
       }
-      setDetailId(null);
-      showToast('Draft deleted from this browser.', 'info');
     },
-    [deleteDraft, showToast],
+    [refreshCases, showToast, wallet.address],
   );
 
   const handleWalletConnected = useCallback(() => {
@@ -160,14 +113,27 @@ export default function App() {
         <AppLayout
           route={route}
           wallet={wallet}
-          draftCount={drafts.length}
+          caseCount={allCases.length}
           onOpenWallet={openWallet}
           onNewCase={openNewCase}
         >
           {route === 'evaluations' ? (
-            <EvaluationsPage drafts={drafts} onOpenCase={setDetailId} onNewCase={openNewCase} />
+            <EvaluationsPage
+              cases={allCases}
+              loading={casesLoading}
+              error={casesError}
+              onOpenCase={setDetailId}
+              onNewCase={openNewCase}
+              onRefresh={handleRefresh}
+            />
           ) : (
-            <WorkspacePage drafts={drafts} onOpenCase={setDetailId} onNewCase={openNewCase} />
+            <WorkspacePage
+              cases={allCases}
+              loading={casesLoading}
+              error={casesError}
+              onOpenCase={setDetailId}
+              onNewCase={openNewCase}
+            />
           )}
         </AppLayout>
       )}
@@ -182,9 +148,8 @@ export default function App() {
         item={detailCase}
         walletAddress={wallet.address}
         onClose={() => setDetailId(null)}
-        onDelete={handleDelete}
         onNotify={showToast}
-        onChainEvaluated={(id) => updateDraft(id, { evaluated: true })}
+        onChainEvaluated={handleRefresh}
       />
       <WalletDialog
         open={walletOpen}

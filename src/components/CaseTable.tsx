@@ -30,29 +30,25 @@ export function CaseTable({
         {cases.length === 0 ? (
           <div className="empty-state">
             <strong>{emptyTitle ?? 'No cases yet.'}</strong>
-            <p>{emptyBody ?? 'Create an evaluation to start a local case.'}</p>
+            <p>{emptyBody ?? 'Open a case to record it in the registry.'}</p>
             <button className="button button-secondary" type="button" onClick={onNewCase}>
               <span className="plus-sign">+</span> New evaluation
             </button>
           </div>
         ) : (
           cases.map((item) => {
-            const isDraft = item.status === 'draft';
             const isOnChain = item.status === 'onchain';
-            const statusClass = isDraft
-              ? 'status-pill draft'
-              : isOnChain
-                ? item.evaluated
-                  ? 'status-pill evaluated'
-                  : 'status-pill onchain'
-                : 'status-pill';
-            const statusLabel = isDraft
-              ? 'Draft'
-              : isOnChain
-                ? item.evaluated
-                  ? 'Evaluated'
-                  : 'On-chain'
-                : 'Example';
+            const statusClass = isOnChain
+              ? item.evaluated
+                ? 'status-pill evaluated'
+                : 'status-pill onchain'
+              : 'status-pill';
+            const statusLabel = isOnChain
+              ? item.evaluated
+                ? 'Evaluated'
+                : 'On-chain'
+              : 'Example';
+            const checkCount = item.criteriaCount ?? item.criteria.length;
 
             return (
               <button
@@ -63,11 +59,7 @@ export function CaseTable({
                 onClick={() => onOpenCase(item.id)}
               >
                 <span className="case-identity">
-                  <span
-                    className={`site-monogram ${
-                      isDraft ? 'draft-mark' : isOnChain ? 'onchain-mark' : item.tone ?? ''
-                    }`}
-                  >
+                  <span className={`site-monogram ${isOnChain ? 'onchain-mark' : item.tone ?? ''}`}>
                     {(item.mark ?? item.title.charAt(0)).toUpperCase()}
                   </span>
                   <span>
@@ -75,10 +67,10 @@ export function CaseTable({
                     <small>{safeHost(item.url)}</small>
                   </span>
                 </span>
-                <span className="criteria-count">{item.criteria.length} checks</span>
+                <span className="criteria-count">{checkCount} checks</span>
                 <span className={statusClass}>{statusLabel}</span>
                 <span className="case-date">
-                  {isDraft ? 'Just now' : item.updated ?? (isOnChain ? 'Studionet' : 'Example')}
+                  {item.updated ?? (isOnChain ? 'Studionet' : 'Example')}
                 </span>
                 <span className="row-chevron" aria-hidden="true">
                   ›

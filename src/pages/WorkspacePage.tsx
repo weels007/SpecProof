@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { CaseTable } from '../components/CaseTable';
 import { Hero } from '../components/Hero';
 import { MetricsGrid } from '../components/MetricsGrid';
@@ -6,19 +6,20 @@ import { PrototypeAlert } from '../components/PrototypeAlert';
 import { SidePanels } from '../components/SidePanels';
 import { pad2 } from '../lib/format';
 import { routeHref } from '../lib/router';
-import { SAMPLE_CASES } from '../lib/samples';
 import type { EvaluationCase } from '../types';
 
 type WorkspacePageProps = {
-  drafts: EvaluationCase[];
+  cases: EvaluationCase[];
+  loading: boolean;
+  error: string | null;
   onOpenCase: (id: string) => void;
   onNewCase: () => void;
 };
 
-export function WorkspacePage({ drafts, onOpenCase, onNewCase }: WorkspacePageProps) {
+export function WorkspacePage({ cases, loading, error, onOpenCase, onNewCase }: WorkspacePageProps) {
   const [alertVisible, setAlertVisible] = useState(true);
-  const allCases = useMemo(() => [...drafts, ...SAMPLE_CASES], [drafts]);
-  const recentCases = allCases.slice(0, 3);
+  const recentCases = cases.slice(0, 3);
+  const sampleCount = cases.filter((item) => item.status === 'sample').length;
 
   return (
     <>
@@ -26,13 +27,13 @@ export function WorkspacePage({ drafts, onOpenCase, onNewCase }: WorkspacePagePr
 
       {alertVisible ? <PrototypeAlert onDismiss={() => setAlertVisible(false)} /> : null}
 
-      <MetricsGrid caseCount={allCases.length} sampleCount={SAMPLE_CASES.length} />
+      <MetricsGrid caseCount={cases.length} sampleCount={sampleCount} />
 
       <div className="section-heading">
         <div>
           <div className="section-kicker">YOUR WORKSPACE</div>
           <h2>
-            Recent cases <span className="heading-count">{pad2(allCases.length)}</span>
+            Recent cases <span className="heading-count">{pad2(cases.length)}</span>
           </h2>
         </div>
         <div className="heading-actions">
@@ -44,6 +45,13 @@ export function WorkspacePage({ drafts, onOpenCase, onNewCase }: WorkspacePagePr
           </button>
         </div>
       </div>
+
+      {loading ? <p className="detail-note">Reading the registry on Studionet…</p> : null}
+      {error ? (
+        <p className="wallet-alert wallet-alert--error" role="alert">
+          {error}
+        </p>
+      ) : null}
 
       <div className="dashboard-grid">
         <CaseTable cases={recentCases} onOpenCase={onOpenCase} onNewCase={onNewCase} />

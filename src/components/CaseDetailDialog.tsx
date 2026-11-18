@@ -2,7 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ToastTone } from '../hooks/useToast';
 import { copyText } from '../lib/clipboard';
 import { pad2 } from '../lib/format';
-import { chainErrorMessage, evaluateCase, explorerAddress, explorerTx, readCase } from '../lib/genlayer';
+import {
+  REGISTRY_ADDRESS,
+  chainErrorMessage,
+  evaluateCase,
+  explorerAddress,
+  explorerTx,
+  readCase,
+} from '../lib/genlayer';
 import type { ChainCase } from '../lib/genlayer';
 import type { CheckResult, EvaluationCase } from '../types';
 
@@ -12,7 +19,6 @@ type CaseDetailDialogProps = {
   item: EvaluationCase | null;
   walletAddress: string | null;
   onClose: () => void;
-  onDelete: (id: string) => void;
   onNotify: (message: string, tone: ToastTone) => void;
   onChainEvaluated: (id: string) => void;
 };
@@ -25,20 +31,19 @@ export function CaseDetailDialog({
   item,
   walletAddress,
   onClose,
-  onDelete,
   onNotify,
   onChainEvaluated,
 }: CaseDetailDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const pressedOnBackdrop = useRef(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [chainCase, setChainCase] = useState<ChainCase | null>(null);
   const [chainLoading, setChainLoading] = useState(false);
   const [chainError, setChainError] = useState<string | null>(null);
   const [evaluating, setEvaluating] = useState(false);
   const [evaluateTx, setEvaluateTx] = useState<string | null>(null);
 
-  const isOnChain = item?.status === 'onchain' && Boolean(item.address);
+  const caseId = item?.caseId ?? null;
+  const isOnChain = item?.status === 'onchain' && Boolean(caseId);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -58,18 +63,17 @@ export function CaseDetailDialog({
   }, [onClose]);
 
   useEffect(() => {
-    setConfirmingDelete(false);
     setChainCase(null);
     setChainError(null);
     setEvaluating(false);
     setEvaluateTx(null);
   }, [item?.id]);
 
-  const loadChainCase = useCallback(async (address: string) => {
+  const loadChainCase = useCallback(async (id: string) => {
     setChainLoading(true);
     setChainError(null);
     try {
-      setChainCase(await readCase(address));
+      setChainCase(await readCase(id));
     } catch (error) {
       setChainError(chainErrorMessage(error));
     } finally {
@@ -78,9 +82,9 @@ export function CaseDetailDialog({
   }, []);
 
   useEffect(() => {
-    if (!item?.address || item.status !== 'onchain') return;
-    void loadChainCase(item.address);
-  }, [item?.address, item?.status, loadChainCase]);
+    if (!caseId || item?.status !== 'onchain') return;
+    void loadChainCase(caseId);
+  }, [caseId, item?.status, loadChainCase]);
 
   async function handleCopy(text: string, label: string) {
     const copied = await copyText(text);
@@ -91,13 +95,13 @@ export function CaseDetailDialog({
   }
 
   async function handleEvaluate() {
-    if (!item?.address || !walletAddress || evaluating) return;
+    if (!item?.caseId || !walletAddress || evaluating) return;
     setEvaluating(true);
     try {
-      const { txHash } = await evaluateCase(walletAddress, item.address);
+      const { txHash } = await evaluateCase(walletAddress, item.caseId);
       setEvaluateTx(txHash);
       onChainEvaluated(item.id);
-      await loadChainCase(item.address);
+      await loadChainCase(item.caseId);
       onNotify('Evaluation recorded on Studionet.', 'success');
     } catch (error) {
       onNotify(chainErrorMessage(error), 'error');
@@ -106,17 +110,22 @@ export function CaseDetailDialog({
     }
   }
 
-  const isDraft = item?.status === 'draft';
   const spec = chainCase?.spec;
   const chainResult = chainCase?.result ?? null;
-  const criteria = isOnChain ? spec?.criteria ?? item?.criteria ?? [] : item?.criteria ?? [];
+  const title = spec?.title ?? item?.title ?? '';
+  const siteUrl = spec?.site_url ?? item?.url ?? '';
+  const creator = spec?.creator ?? item?.creator ?? '';
+  const criteria = isOnChain ? spec?.criteria ?? [] : item?.criteria ?? [];
   const checks = isOnChain ? chainResult?.checks ?? [] : item?.checks ?? [];
   const passedCount = checks.filter((check) => check.passed).length;
-  const evaluated = isOnChain ? spec?.evaluated ?? item?.evaluated ?? false : false;
+  const evaluated = isOnChain ? spec?.evaluated ?? false : false;
+  const checkCount = isOnChain
+    ? spec?.criteria.length ?? item?.criteriaCount ?? 0
+    : item?.criteria.length ?? 0;
   const isCreator =
     Boolean(walletAddress) &&
-    Boolean(spec?.creator) &&
-    walletAddress!.toLowerCase() === spec!.creator.toLowerCase();
+    Boolean(creator) &&
+    walletAddress!.toLowerCase() === creator.toLowerCase();
 
   return (
     <dialog
@@ -135,7 +144,7 @@ export function CaseDetailDialog({
       <div className="modal-card detail-card">
         <div className="modal-topline">
           <span className="modal-eyebrow" id="detail-eyebrow">
-            {isOnChain ? 'STUDIONET CASE' : isDraft ? 'LOCAL DRAFT' : 'ILLUSTRATIVE SAMPLE'}
+            {isOnChain ? 'STUDIONET CASE' : 'ILLUSTRATIVE SAMPLE'}
           </span>
           <button className="icon-button" type="button" aria-label="Close details" onClick={onClose}>
             ×
@@ -144,13 +153,13 @@ export function CaseDetailDialog({
 
         {item ? (
           <div id="detail-content">
-            <h2 id="detail-title">{item.title}</h2>
+            <h2 id="detail-title">{title}</h2>
             <div className="detail-url-row">
-              <span className="detail-url">{spec?.site_url ?? item.url}</span>
+              <span className="detail-url">{siteUrl}</span>
               <button
                 className="detail-copy"
                 type="button"
-                onClick={() => void handleCopy(spec?.site_url ?? item.url, 'Website URL')}
+                onClick={() => void handleCopy(siteUrl, 'Website URL')}
               >
                 Copy URL
               </button>
@@ -159,26 +168,23 @@ export function CaseDetailDialog({
             {isOnChain ? (
               <div className="detail-address-row">
                 <span>
-                  Contract <code>{shortAddress(item.address ?? '')}</code>
+                  Registry case <code>#{item.caseId}</code>
                 </span>
                 <button
                   className="detail-copy"
                   type="button"
-                  onClick={() => void handleCopy(item.address ?? '', 'Contract address')}
+                  onClick={() => void handleCopy(item.caseId ?? '', 'Case id')}
                 >
-                  Copy address
+                  Copy id
                 </button>
               </div>
             ) : null}
 
             {isOnChain ? (
               <div className="detail-links">
-                <a href={explorerAddress(item.address ?? '')} target="_blank" rel="noreferrer">
-                  Contract on explorer ↗
-                </a>
-                {item.deployTx ? (
-                  <a href={explorerTx(item.deployTx)} target="_blank" rel="noreferrer">
-                    Deploy tx ↗
+                {REGISTRY_ADDRESS ? (
+                  <a href={explorerAddress(REGISTRY_ADDRESS)} target="_blank" rel="noreferrer">
+                    Registry on explorer ↗
                   </a>
                 ) : null}
                 {evaluateTx ? (
@@ -189,8 +195,8 @@ export function CaseDetailDialog({
                 <button
                   className="detail-copy"
                   type="button"
-                  disabled={chainLoading}
-                  onClick={() => item.address && void loadChainCase(item.address)}
+                  disabled={chainLoading || !item.caseId}
+                  onClick={() => item.caseId && void loadChainCase(item.caseId)}
                 >
                   {chainLoading ? 'Refreshing…' : 'Refresh'}
                 </button>
@@ -204,63 +210,53 @@ export function CaseDetailDialog({
                     ? evaluated
                       ? 'Recorded on Studionet'
                       : 'Waiting for evaluation'
-                    : isDraft
-                      ? 'Not evaluated'
-                      : 'Illustrative result'}
+                    : 'Illustrative result'}
                 </strong>
                 <small>
                   {isOnChain
                     ? spec
-                      ? `Creator ${shortAddress(spec.creator)} · validators compare every check`
-                      : 'Reading the contract…'
-                    : isDraft
-                      ? 'Saved in this browser only'
-                      : 'Sample data — not fetched from the website'}
+                      ? `Opened by ${shortAddress(spec.creator)} · validators compare every check`
+                      : 'Reading the registry…'
+                    : 'Sample data — not fetched from the website'}
                 </small>
               </span>
               <span className="detail-score">
                 {isOnChain
                   ? chainResult
-                    ? `${passedCount}/${criteria.length}`
+                    ? `${passedCount}/${checkCount}`
                     : '—'
-                  : isDraft
-                    ? '—'
-                    : `${passedCount}/${criteria.length}`}
+                  : `${passedCount}/${checkCount}`}
               </span>
             </div>
 
-            {chainLoading ? <p className="detail-note">Reading the contract from Studionet…</p> : null}
+            {chainLoading ? <p className="detail-note">Reading the case from Studionet…</p> : null}
             {chainError ? (
               <p className="wallet-alert wallet-alert--error" role="alert">
                 {chainError}
               </p>
             ) : null}
 
-            <div className="detail-section-title">ACCEPTANCE CHECKS · {pad2(criteria.length)}</div>
+            <div className="detail-section-title">ACCEPTANCE CHECKS · {pad2(checkCount)}</div>
 
             {criteria.map((criterion, index) => {
               const check = checks[index];
-              const passed = isOnChain ? Boolean(check?.passed) : !isDraft && Boolean(check?.passed);
+              const passed = Boolean(check?.passed);
               const mark = isOnChain
                 ? evaluated
                   ? passed
                     ? '✓'
                     : '×'
                   : '·'
-                : isDraft
-                  ? '·'
-                  : passed
-                    ? '✓'
-                    : '×';
+                : passed
+                  ? '✓'
+                  : '×';
               const note = isOnChain
                 ? evaluated
                   ? passed
                     ? 'Validators agreed this criterion is met.'
                     : 'Validators agreed this criterion is not met.'
                   : 'Pending a GenLayer evaluation.'
-                : isDraft
-                  ? 'Pending a real GenLayer evaluation.'
-                  : (check as CheckResult | undefined)?.note ?? SAMPLE_NOTE;
+                : (check as CheckResult | undefined)?.note ?? SAMPLE_NOTE;
 
               return (
                 <div className="detail-check" key={`${item.id}-${index}`}>
@@ -275,13 +271,11 @@ export function CaseDetailDialog({
 
             <div className="detail-disclaimer">
               {isOnChain
-                ? 'This result lives in the contract on Studionet. Only the creator wallet can record it once, and nobody can change it afterwards.'
-                : isDraft
-                  ? 'This is a draft only. Deploy it on Studionet to let validators record a result.'
-                  : 'This is illustrative UI data to demonstrate the result format. It is not a live inspection, validator decision, or on-chain result.'}
+                ? 'This result lives in the SpecProof registry on Studionet. Only the wallet that opened the case can record it, it happens once, and nobody can change it afterwards.'
+                : 'This is illustrative UI data to demonstrate the result format. It is not a live inspection, validator decision, or on-chain result.'}
             </div>
 
-            {isOnChain && !evaluated && isCreator ? (
+            {isOnChain && !evaluated && spec && isCreator ? (
               <div className="detail-evaluate">
                 <button
                   className="button button-primary"
@@ -298,40 +292,8 @@ export function CaseDetailDialog({
               </div>
             ) : null}
 
-            {isOnChain && !evaluated && !isCreator ? (
-              <p className="detail-note">Only the wallet that deployed this case can evaluate it.</p>
-            ) : null}
-
-            {isDraft ? (
-              confirmingDelete ? (
-                <div className="detail-confirm" role="alertdialog" aria-label="Delete draft">
-                  <p>Delete this draft? It only exists in this browser.</p>
-                  <div className="detail-confirm-actions">
-                    <button
-                      className="button button-quiet"
-                      type="button"
-                      onClick={() => setConfirmingDelete(false)}
-                    >
-                      Keep draft
-                    </button>
-                    <button
-                      className="button button-danger"
-                      type="button"
-                      onClick={() => onDelete(item.id)}
-                    >
-                      Delete draft
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  className="button button-quiet detail-delete"
-                  type="button"
-                  onClick={() => setConfirmingDelete(true)}
-                >
-                  Delete draft
-                </button>
-              )
+            {isOnChain && !evaluated && spec && !isCreator ? (
+              <p className="detail-note">Only the wallet that opened this case can evaluate it.</p>
             ) : null}
           </div>
         ) : null}

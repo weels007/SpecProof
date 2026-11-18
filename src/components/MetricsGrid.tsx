@@ -51,7 +51,7 @@ export function MetricsGrid({ caseCount, sampleCount }: MetricsGridProps) {
           <span className="genlayer-symbol">G</span> GenLayer
         </div>
         <div className="metric-foot">
-          <span className="metric-neutral">Deployed per case</span>
+          <span className="metric-neutral">One shared registry</span>
           <span>Studionet</span>
         </div>
       </article>

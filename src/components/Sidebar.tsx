@@ -7,7 +7,7 @@ import { walletSubtitle, walletTitle } from '../lib/wallet';
 type SidebarProps = {
   route: RouteName;
   wallet: WalletState;
-  draftCount: number;
+  caseCount: number;
   onOpenWallet: () => void;
   onNewCase: () => void;
 };
@@ -19,7 +19,7 @@ function walletDotClass(wallet: WalletState): string {
   return 'wallet-dot';
 }
 
-export function Sidebar({ route, wallet, draftCount, onOpenWallet, onNewCase }: SidebarProps) {
+export function Sidebar({ route, wallet, caseCount, onOpenWallet, onNewCase }: SidebarProps) {
   return (
     <aside className="sidebar" aria-label="Workspace navigation">
       <a className="brand" href={routeHref('landing')} aria-label="SpecProof home">
@@ -57,7 +57,7 @@ export function Sidebar({ route, wallet, draftCount, onOpenWallet, onNewCase }: 
             <path d="M7 3.75h7l4.25 4.5v12H7a2 2 0 0 1-2-2v-12a2.5 2.5 0 0 1 2-2.5Z" />
             <path d="M14 4v5h4M9 13h6M9 16.5h6" />
           </svg>
-          Evaluations <span className="nav-count">{pad2(draftCount)}</span>
+          Evaluations <span className="nav-count">{pad2(caseCount)}</span>
         </a>
         <a
           className={route === 'how-it-works' ? 'nav-link active' : 'nav-link'}

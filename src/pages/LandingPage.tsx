@@ -185,14 +185,15 @@ export function LandingPage({ onStart }: LandingPageProps) {
               Live on Studionet. Limits stated.
             </h2>
             <p className="lp-section-lead">
-              A case deploys as its own contract and validators record one result. What is still
-              missing is a server, a shared case list and permanence — Studionet state is temporary.
+              Every case is a record in one registry contract on Studionet, and validators record
+              the result once. What is still missing is a server and permanence — Studionet state is
+              temporary.
             </p>
           </div>
           <ul>
-            <li>Local drafts stay in this browser; an on-chain case lives in its contract.</li>
-            <li>Only the creator wallet can evaluate, and only once.</li>
-            <li>A case can disappear when Studionet resets; every case keeps its explorer link.</li>
+            <li>One contract holds every case; nothing is deployed per case.</li>
+            <li>Only the wallet that opened a case can evaluate it, and only once.</li>
+            <li>A case can disappear when Studionet resets; the registry keeps its explorer link.</li>
             <li>Sample rows are illustrative, never live checks.</li>
           </ul>
         </div>
