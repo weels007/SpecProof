@@ -17,6 +17,7 @@ The live evaluation (real web render + real validators) only runs when
 undetermined when validators disagree.
 """
 
+import base64
 import json
 import os
 import re
@@ -43,7 +44,11 @@ WAIT = {"wait_interval": 2000, "wait_retries": 120}
 
 
 def _keystore_account(label: str) -> LocalAccount | None:
-    """Decrypt KEYSTORE_<label> (or the file in KEYSTORE_PATH_<label>)."""
+    """Decrypt KEYSTORE_<label> (or the file in KEYSTORE_PATH_<label>).
+
+    Mirrors the Clause Guard wallet loader: the secret may hold raw JSON or a
+    base64 copy of it, and decryption goes through Account.decrypt(dict, pw).
+    """
     raw = os.environ.get(f"KEYSTORE_{label}", "").strip()
     path = os.environ.get(f"KEYSTORE_PATH_{label}", "").strip()
     password = os.environ.get(f"KEYSTORE_PASSWORD_{label}", "")
@@ -59,13 +64,19 @@ def _keystore_account(label: str) -> LocalAccount | None:
     if re.fullmatch(r"(0x)?[0-9a-fA-F]{64}", text):
         return Account.from_key(text)
 
+    if not text.lstrip().startswith("{"):
+        try:
+            text = base64.b64decode(text).decode("utf-8").strip()
+        except Exception as error:
+            raise RuntimeError(
+                f"KEYSTORE_{label} is neither JSON nor base64. Paste the contents of the "
+                "keystore file, not a file path."
+            ) from error
+
     try:
         payload = json.loads(text)
     except ValueError as error:
-        raise RuntimeError(
-            f"KEYSTORE_{label} is not JSON. Paste the contents of the keystore file "
-            "(a JSON object with a \"crypto\" field), not a file path."
-        ) from error
+        raise RuntimeError(f"KEYSTORE_{label} is not valid JSON.") from error
 
     if not isinstance(payload, dict) or not ("crypto" in payload or "Crypto" in payload):
         raise RuntimeError(
@@ -87,17 +98,18 @@ def _keystore_account(label: str) -> LocalAccount | None:
     if not any(candidates):
         raise RuntimeError(f"KEYSTORE_PASSWORD_{label} is empty.")
 
+    last_error: Exception | None = None
     for candidate in candidates:
         try:
-            return Account.from_keystore(text, candidate)
-        except Exception:
+            return Account.from_key(Account.decrypt(payload, candidate))
+        except Exception as error:
+            last_error = error
             continue
 
+    detail = f"{type(last_error).__name__}: {last_error}" if last_error else "unknown error"
     raise RuntimeError(
         f"Could not unlock KEYSTORE_{label} (wallet {address}, keystore v{version}, "
-        f"kdf {kdf}). Neither the stored password nor its trimmed form matched. "
-        f"Make sure KEYSTORE_PASSWORD_{label} is the password this keystore was "
-        "exported with, and that the secret has no surrounding quotes."
+        f"kdf {kdf}). Decrypt failed with: {detail}"
     )
 
 

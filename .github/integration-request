@@ -4,4 +4,4 @@ Editing or re-pushing this file triggers the Integration (GenLayer) workflow
 against testnet_bradbury with the repository wallets. The run deploys the
 contract twice and sends one reverting transaction from the outsider wallet.
 
-Run 6: keystore password updated again; run the funded Bradbury suite.
+Run 7: loader aligned with the Clause Guard wallet loader (dict decrypt, base64, inner error).
