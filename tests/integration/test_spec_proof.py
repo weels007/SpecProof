@@ -79,11 +79,11 @@ def _keystore_account(label: str) -> LocalAccount | None:
     kdf = crypto.get("kdf", "?")
 
     # Passwords are compared byte for byte: try the value as stored, then
-    # without the trailing newline a paste can add.
+    # without a pasted trailing newline, then without surrounding quotes.
     candidates = [password]
-    trimmed = password.strip()
-    if trimmed and trimmed != password:
-        candidates.append(trimmed)
+    for candidate in (password.strip(), password.strip().strip("\"'")):
+        if candidate and candidate not in candidates:
+            candidates.append(candidate)
     if not any(candidates):
         raise RuntimeError(f"KEYSTORE_PASSWORD_{label} is empty.")
 
