@@ -46,6 +46,9 @@ jobs:
           if [ -z "${ACCOUNT_PRIVATE_KEY_2}" ]; then
             echo "ACCOUNT_PRIVATE_KEY_2 is not set; the outsider test will be skipped."
           fi
+      - name: Use the funded network config
+        if: inputs.network == 'testnet_bradbury'
+        run: cp gltest.testnet.yaml gltest.config.yaml
       - name: Install GenLayer tooling
         run: pip install -r requirements.txt
       - name: Run integration tests

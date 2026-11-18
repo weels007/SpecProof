@@ -97,8 +97,19 @@ Repository secrets (Settings → Secrets and variables → Actions):
   GEN to send one reverting transaction. Without it, the outsider test is skipped.
 
 Nothing else is required: the Bradbury RPC and chain id come from `gltest`, and the network's own
-validators run the model, so no LLM or RPC keys are needed. For local runs, copy `.env.example` to
-`.env` (git-ignored) and fill in the keys.
+validators run the model, so no LLM or RPC keys are needed.
+
+For a local funded run, fill `.env` (copied from `.env.example`) and swap in the testnet config:
+
+```bash
+cp gltest.testnet.yaml gltest.config.yaml
+gltest tests/integration -v --network testnet_bradbury
+git restore gltest.config.yaml
+```
+
+`gltest` reads `gltest.config.yaml` at startup, including during plain `pytest` runs, which is why
+the committed default config contains no wallet references and the funded network lives in a
+separate file.
 
 Rules:
 
