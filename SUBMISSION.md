@@ -186,67 +186,13 @@ The Evaluations page (`#/evaluations`) lists the newest 50 cases with counts fro
 - **Pending** — cases without a recorded result yet;
 - search matches name, URL, creator address and criteria.
 
-### Proof the path works — expected verification outcome
+### Proof the path works
 
-Following the nine steps leaves visible, checkable artifacts. Nothing below is a mock: every value can
-be read back from Studionet, without the app.
-
-**A note on contract addresses.** Opening a case does **not** deploy a contract, so no new address is
-generated per case. The only thing that produces a fresh address is deploying the registry itself —
-which the integration suite does once per run and prints as `[integration] registry 0x…`. After that,
-each case is a record inside the same contract, identified by a **case id** (`#1`, `#2`, …). The
-address shown in the app (`0x2936cf848dE46F49C4C3bD49e78F77FE8B4EF57b`) therefore stays the same while
-the case ids grow.
-
-**After step 2 — a wallet is connected.**
-The top-right button stops reading **Connect wallet** and shows the shortened account (`0x12ab…cd34`),
-and the sidebar wallet card names the chain next to it (**Studionet**). The wallet shows no
-transaction, because connecting only shares the address.
-
-**After step 4 — a case exists on chain.**
-Four things appear at once:
-
-- a toast reading **Case opened in the SpecProof registry.**;
-- the detail dialog opens on the new case, titled with the name you typed;
-- the row is at the top of the list with the status **On-chain**, and the **All cases** count goes up by
-  one (`case_count` grew);
-- the **My cases** count goes up for that wallet, and **Pending** does too.
-
-The new artifacts are the **case id** — `#N`, the value `create_case` returns and `get_case` takes — and
-a **create transaction hash**. `get_case(N)` now returns the stored spec: `title`, `site_url`,
-`criteria` as an array, `criteria_text` as typed, `evaluated: false`, and `creator` equal to the
-connected wallet.
-
-**After step 7 — the evaluation is recorded.**
-Reopen the case from the list (the record survives a reload) and the dialog shows:
-
-- status **Recorded on Studionet** and a score such as `2/3`;
-- the verdict line — **Every agreed criterion was met.** or **N of M criteria were met.**;
-- one ✓ or × per criterion, each with *"Validators agreed this criterion is met / is not met."*;
-- the **AI CONSENSUS** panel switched to **Agreed and recorded**;
-- **Evaluation tx ↗** pointing at the transaction just signed.
-
-In the list the pill changes from **On-chain** to **Evaluated**, **Pending** drops by one, and
-`get_result(N)` returns `{"all_passed": true|false, "checks": [{"id": "C1", "passed": true|false}, …]}`.
-
-**After step 8 — it reads the same from anywhere.**
-Reload the page, open it in another browser, or call the views from a terminal: `get_case(N)`,
-`get_result(N)` and `list_cases()` return the same values, and the contract page on
-`https://explorer-studio.genlayer.com` lists the same cases. A second `evaluate(N)` from any account
-reverts — *"This evaluation is already recorded"* — which is the proof that the write really happened
-once.
-
-**The reference registry.**
-[Run 44295718824](https://github.com/weels007/SpecProof/actions/runs/44295718824) reports **4 passed in
-1:49** and printed `[integration] registry 0x2936cf848dE46F49C4C3bD49e78F77FE8B4EF57b`. That suite
-opened three cases: the first two for deploy/read and outsider-rejection coverage, and a third that the
-live E2E evaluated with a real page render, a real LLM pass and real validator agreement. Opening the
-app, a steward should therefore see three existing cases, with the newest one already **Evaluated**.
-
-**What is not expected.** No GEN is spent and no balance changes (Studionet is gasless). No model prose
-is stored, so there is no reasoning text to read — only ids and booleans. And if the registry address
-stops resolving, that is a Studionet reset: the app says so plainly and the fix is to redeploy and
-update `REGISTRY_ADDRESS`, not to retry the same write.
+Opening a case adds a record to the existing registry, not a new contract, so the address stays
+`0x2936cf848dE46F49C4C3bD49e78F77FE8B4EF57b`; the new artifacts are a case id (`#N`) and a create
+transaction. After evaluation the case reads **Recorded on Studionet**, with ✓/× per criterion and a
+verdict, and `get_result(N)` returns the same booleans; a second `evaluate(N)` reverts. A steward sees
+three cases, the newest already evaluated.
 
 ### What can go wrong, and what it means
 
