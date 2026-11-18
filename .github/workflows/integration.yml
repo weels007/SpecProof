@@ -32,13 +32,23 @@ jobs:
       KEYSTORE_PASSWORD_2: ${{ secrets.KEYSTORE_PASSWORD_2 }}
       ACCOUNT_PRIVATE_KEY_1: ${{ secrets.ACCOUNT_PRIVATE_KEY_1 }}
       ACCOUNT_PRIVATE_KEY_2: ${{ secrets.ACCOUNT_PRIVATE_KEY_2 }}
-      SPECPROOF_LIVE_EVALUATION: ${{ inputs.live_evaluation && '1' || '0' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
+      - name: Resolve options
+        run: |
+          live=0
+          if [ "${{ inputs.live_evaluation }}" = "true" ]; then
+            live=1
+          fi
+          if [ "${{ github.event_name }}" = "push" ] && grep -q "live-evaluation" .github/integration-request; then
+            live=1
+          fi
+          echo "SPECPROOF_LIVE_EVALUATION=$live" >> "$GITHUB_ENV"
+          echo "live evaluation: $live"
       - name: Install GenLayer tooling
         run: pip install -r requirements.txt
       - name: Run integration tests
