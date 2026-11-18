@@ -52,7 +52,7 @@ export function WorkspacePage({ drafts, onOpenCase, onNewCase }: WorkspacePagePr
 
       <footer className="page-footer">
         <span>
-          SpecProof <span className="footer-separator">·</span> concept prototype
+          SpecProof <span className="footer-separator">·</span> GenLayer Studionet
         </span>
         <span>Judgment by consensus, not a single backend.</span>
         <a href="https://docs.genlayer.com" target="_blank" rel="noreferrer">

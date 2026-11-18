@@ -26,7 +26,7 @@ export function SiteFooter() {
         </nav>
       </div>
       <div className="site-footer-base">
-        <span>SpecProof · concept prototype</span>
+        <span>SpecProof · GenLayer Studionet</span>
         <span>Judgment by consensus, not a single backend.</span>
       </div>
     </footer>

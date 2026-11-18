@@ -95,7 +95,7 @@ Header pin: `# { "Depends": "py-genlayer:1jb45aa8ynh2a9c9xn3b7qqh8sm5q93hwfp7jqm
 
 React 18 + TypeScript + Vite, `genlayer-js@1.1.8`, hash routes so deep links survive static hosting:
 
-- `#/` — landing page: what the case is, what it costs, what it cannot do.
+- `#/` — landing page: the three steps, why the judgment holds up, and the current scope.
 - `#/workspace` — overview, metrics, recent cases.
 - `#/evaluations` — every case, tabs and search.
 - `#/how-it-works` — the method, a rubric example, the stored result, the limits.

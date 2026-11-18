@@ -104,7 +104,7 @@ export function Sidebar({ route, wallet, draftCount, onOpenWallet, onNewCase }: 
           <span className="avatar">SP</span>
           <div>
             <strong>SpecProof</strong>
-            <small>Prototype workspace</small>
+            <small>Studionet workspace</small>
           </div>
           <span className="profile-more" aria-hidden="true">
             ···

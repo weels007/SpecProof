@@ -182,17 +182,17 @@ export function LandingPage({ onStart }: LandingPageProps) {
           <div>
             <span className="lp-kicker">CURRENT SCOPE</span>
             <h2 className="lp-h2" id="lp-status-title">
-              Prototype, stated plainly.
+              Live on Studionet. Limits stated.
             </h2>
             <p className="lp-section-lead">
-              The interface is real; the chain wiring is not. Everything below is true today, and
-              the product says so on the dashboard too.
+              A case deploys as its own contract and validators record one result. What is still
+              missing is a server, a shared case list and permanence — Studionet state is temporary.
             </p>
           </div>
           <ul>
-            <li>Drafts live in this browser only.</li>
-            <li>No wallet transaction is submitted.</li>
-            <li>The contract is tested in CI, not deployed.</li>
+            <li>Local drafts stay in this browser; an on-chain case lives in its contract.</li>
+            <li>Only the creator wallet can evaluate, and only once.</li>
+            <li>A case can disappear when Studionet resets; every case keeps its explorer link.</li>
             <li>Sample rows are illustrative, never live checks.</li>
           </ul>
         </div>

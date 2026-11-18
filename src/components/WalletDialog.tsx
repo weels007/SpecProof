@@ -95,8 +95,9 @@ export function WalletDialog({ open, onClose, wallet, onConnected }: WalletDialo
         ) : (
           <>
             <p className="wallet-intro">
-              SpecProof asks your wallet for the account address only. It never requests a seed
-              phrase or a private key, and this prototype sends no transaction.
+              SpecProof asks your wallet for the account address, and only ever to sign what you
+              start: deploying a case or recording its evaluation. It never requests a seed phrase
+              or a private key.
             </p>
 
             {wallet.error ? (
