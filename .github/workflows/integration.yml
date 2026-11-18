@@ -14,19 +14,24 @@ on:
         description: Run the real web + LLM evaluation (costs testnet fees)
         type: boolean
         default: false
+  # Push an edit to this marker file to re-run the funded Bradbury suite.
+  push:
+    paths:
+      - .github/integration-request
 
 permissions:
   contents: read
 
 concurrency:
-  group: integration-${{ inputs.network }}
+  group: integration-${{ inputs.network || 'testnet_bradbury' }}
   cancel-in-progress: false
 
 jobs:
   integration:
-    name: Integration (${{ inputs.network }})
+    name: Integration (${{ inputs.network || 'testnet_bradbury' }})
     runs-on: ubuntu-latest
     env:
+      NETWORK: ${{ inputs.network || 'testnet_bradbury' }}
       KEYSTORE_1: ${{ secrets.KEYSTORE_1 }}
       KEYSTORE_PASSWORD_1: ${{ secrets.KEYSTORE_PASSWORD_1 }}
       KEYSTORE_2: ${{ secrets.KEYSTORE_2 }}
@@ -41,7 +46,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Check wallet secrets
-        if: inputs.network == 'testnet_bradbury'
+        if: env.NETWORK == 'testnet_bradbury'
         run: |
           has_keystore=0
           if [ -n "${KEYSTORE_1}" ] && [ -n "${KEYSTORE_PASSWORD_1}" ]; then
@@ -57,4 +62,4 @@ jobs:
       - name: Install GenLayer tooling
         run: pip install -r requirements.txt
       - name: Run integration tests
-        run: gltest tests/integration -v --network ${{ inputs.network }}
+        run: gltest tests/integration -v --network "$NETWORK"

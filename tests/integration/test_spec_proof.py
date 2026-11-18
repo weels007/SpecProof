@@ -37,6 +37,9 @@ CRITERIA = "\n".join(
     ]
 )
 
+# Bradbury consensus can take a while; give each receipt up to ~4 minutes.
+WAIT = {"wait_interval": 2000, "wait_retries": 120}
+
 
 def _keystore_account(label: str) -> LocalAccount | None:
     """Decrypt KEYSTORE_<label> (or the file in KEYSTORE_PATH_<label>)."""
@@ -107,7 +110,7 @@ def test_wallets() -> tuple[LocalAccount, LocalAccount | None]:
 def test_deploy_and_read_spec(test_wallets):
     creator, _ = test_wallets
     factory = get_contract_factory("SpecProof")
-    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator, fees=_fees())
+    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator, fees=_fees(), **WAIT)
 
     spec = json.loads(contract.get_spec().call())
 
@@ -124,9 +127,9 @@ def test_outsider_cannot_evaluate(test_wallets):
         pytest.skip("Set a second wallet (KEYSTORE_2 or ACCOUNT_PRIVATE_KEY_2)")
 
     factory = get_contract_factory("SpecProof")
-    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator, fees=_fees())
+    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator, fees=_fees(), **WAIT)
 
-    receipt = contract.connect(outsider).evaluate().transact(fees=_fees())
+    receipt = contract.connect(outsider).evaluate().transact(fees=_fees(), **WAIT)
     assert tx_execution_failed(receipt)
 
     spec = json.loads(contract.get_spec().call())
@@ -140,9 +143,9 @@ def test_outsider_cannot_evaluate(test_wallets):
 def test_live_evaluation_records_outcome(test_wallets):
     creator, _ = test_wallets
     factory = get_contract_factory("SpecProof")
-    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator, fees=_fees())
+    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator, fees=_fees(), **WAIT)
 
-    first = contract.evaluate().transact(fees=_fees())
+    first = contract.evaluate().transact(fees=_fees(), **WAIT)
     assert tx_execution_succeeded(first)
 
     result = json.loads(contract.get_result().call())
@@ -150,5 +153,5 @@ def test_live_evaluation_records_outcome(test_wallets):
     assert [check["id"] for check in result["checks"]] == ["C1", "C2"]
 
     # A recorded outcome cannot be evaluated a second time.
-    second = contract.evaluate().transact(fees=_fees())
+    second = contract.evaluate().transact(fees=_fees(), **WAIT)
     assert tx_execution_failed(second)
