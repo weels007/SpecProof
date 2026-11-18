@@ -170,7 +170,7 @@ def _count(contract) -> int:
 def _open_case(contract, account, title=TITLE, url=SITE_URL, criteria=CRITERIA):
     """Open a case and return (receipt, id), using the registry's own counter."""
     before = _count(contract)
-    receipt = _send(contract.connect(account).create_case(title, url, criteria))
+    receipt = _send(contract.connect(account).create_case(args=[title, url, criteria]))
     return receipt, str(before + 1)
 
 
@@ -222,7 +222,7 @@ def test_deploy_and_open_a_case(registry, test_wallets):
     receipt, case_id = _open_case(registry, creator)
     assert tx_execution_succeeded(receipt)
 
-    spec = json.loads(registry.get_case(case_id).call())
+    spec = json.loads(registry.get_case(args=[case_id]).call())
 
     assert spec["id"] == case_id
     assert spec["title"] == TITLE
@@ -230,7 +230,7 @@ def test_deploy_and_open_a_case(registry, test_wallets):
     assert spec["criteria"] == CRITERIA.split("\n")
     assert spec["evaluated"] is False
     assert spec["creator"].lower() == creator.address.lower()
-    assert json.loads(registry.get_result(case_id).call()) == {}
+    assert json.loads(registry.get_result(args=[case_id]).call()) == {}
 
 
 def test_outsider_cannot_evaluate(registry, test_wallets):
@@ -240,10 +240,10 @@ def test_outsider_cannot_evaluate(registry, test_wallets):
 
     _, case_id = _open_case(registry, creator)
 
-    receipt = _send(registry.connect(outsider).evaluate(case_id))
+    receipt = _send(registry.connect(outsider).evaluate(args=[case_id]))
     assert tx_execution_failed(receipt)
 
-    assert json.loads(registry.get_case(case_id).call())["evaluated"] is False
+    assert json.loads(registry.get_case(args=[case_id]).call())["evaluated"] is False
 
 
 def test_rejects_invalid_specs_on_chain(registry, test_wallets):
@@ -259,7 +259,7 @@ def test_rejects_invalid_specs_on_chain(registry, test_wallets):
     ]
 
     for title, site_url, criteria, label in invalid_cases:
-        receipt = _send(registry.connect(creator).create_case(title, site_url, criteria))
+        receipt = _send(registry.connect(creator).create_case(args=[title, site_url, criteria]))
         assert tx_execution_failed(receipt), label
 
     assert _count(registry) == before
@@ -278,27 +278,27 @@ def test_end_to_end_creator_evaluates_after_outsider_attempt(registry, test_wall
     assert tx_execution_succeeded(receipt)
 
     # Adversarial step 1: an outsider cannot consume the one evaluation.
-    outsider_receipt = _send(registry.connect(outsider).evaluate(case_id))
+    outsider_receipt = _send(registry.connect(outsider).evaluate(args=[case_id]))
     assert tx_execution_failed(outsider_receipt)
-    assert json.loads(registry.get_case(case_id).call())["evaluated"] is False
+    assert json.loads(registry.get_case(args=[case_id]).call())["evaluated"] is False
 
     # E2E: the creator runs the real web render + LLM consensus.
-    first = _send(registry.connect(creator).evaluate(case_id), LIVE_WAIT)
+    first = _send(registry.connect(creator).evaluate(args=[case_id]), LIVE_WAIT)
     assert tx_execution_succeeded(first)
 
-    spec = json.loads(registry.get_case(case_id).call())
+    spec = json.loads(registry.get_case(args=[case_id]).call())
     assert spec["evaluated"] is True
 
-    result = json.loads(registry.get_result(case_id).call())
+    result = json.loads(registry.get_result(args=[case_id]).call())
     assert isinstance(result["all_passed"], bool)
     assert [check["id"] for check in result["checks"]] == ["C1", "C2"]
     assert all(isinstance(check["passed"], bool) for check in result["checks"])
 
     # Adversarial step 2: neither party can replace the recorded outcome.
-    outsider_again = _send(registry.connect(outsider).evaluate(case_id))
+    outsider_again = _send(registry.connect(outsider).evaluate(args=[case_id]))
     assert tx_execution_failed(outsider_again)
-    creator_again = _send(registry.connect(creator).evaluate(case_id))
+    creator_again = _send(registry.connect(creator).evaluate(args=[case_id]))
     assert tx_execution_failed(creator_again)
 
     # Rejected attempts left the stored record untouched.
-    assert json.loads(registry.get_result(case_id).call()) == result
+    assert json.loads(registry.get_result(args=[case_id]).call()) == result

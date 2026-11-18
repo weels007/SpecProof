@@ -1,1 +1,1 @@
-Run 18: deploy the registry with an explicit __init__ and print its address.
+Run 19: registry deploy plus args=[...] calls; print the registry address.
