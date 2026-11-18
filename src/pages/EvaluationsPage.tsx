@@ -34,10 +34,6 @@ const EMPTY: Record<Tab, { title: string; body: string }> = {
   },
 };
 
-function plural(count: number, word: string): string {
-  return `${count} ${word}${count === 1 ? '' : 's'}`;
-}
-
 export function EvaluationsPage({
   cases,
   total,
@@ -79,19 +75,25 @@ export function EvaluationsPage({
 
   const needsWallet = tab === 'mine' && !connected;
 
+  const isAre = (count: number) => (count === 1 ? 'is' : 'are');
+  const caseWord = cases.length === 1 ? 'case' : 'cases';
+  const shownNote = truncated ? ` Showing the newest ${cases.length} of ${total}.` : '';
+
   let summary: string;
   if (tab === 'mine') {
     summary = connected
-      ? `${plural(mine.length, 'case')} opened by ${shortAddress(walletAddress ?? '')}.`
+      ? `${mine.length} of ${cases.length} ${caseWord} ${
+          mine.length === 1 ? 'was' : 'were'
+        } opened by ${shortAddress(walletAddress ?? '')}.`
       : 'Connect a wallet to see the cases it opened.';
   } else if (tab === 'pending') {
-    summary = truncated
-      ? `${plural(pending.length, 'case')} waiting for an evaluation in the newest ${cases.length}; only the wallet that opened a case can evaluate it.`
-      : `${plural(pending.length, 'case')} waiting for an evaluation. Only the wallet that opened a case can evaluate it.`;
+    summary = `${pending.length} of ${cases.length} ${caseWord} ${isAre(
+      pending.length,
+    )} waiting for an evaluation; only the wallet that opened a case can evaluate it.${shownNote}`;
   } else {
     summary = truncated
       ? `Showing the newest ${cases.length} of ${total} cases in the registry.`
-      : `${plural(cases.length, 'case')} in the registry.`;
+      : `${cases.length} ${caseWord} in the registry.`;
   }
 
   return (

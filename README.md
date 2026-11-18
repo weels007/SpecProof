@@ -79,7 +79,7 @@ Routes are hash based, so deep links survive static hosting:
 
 - `#/` — landing page.
 - `#/workspace` — overview, metrics and recent cases.
-- `#/evaluations` — all cases with tabs and search.
+- `#/evaluations` — every case, plus My cases and pending filters, with search.
 - `#/how-it-works` — the method, a rubric example, the stored result and the limits.
 
 **On-chain flow**
