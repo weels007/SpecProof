@@ -157,12 +157,14 @@ def _fee_arguments(callable_obj) -> dict:
 
 
 def _deploy_case(factory, account, site_url, criteria):
-    return factory.deploy(
+    contract = factory.deploy(
         args=[site_url, criteria],
         account=account,
         **WAIT,
         **_fee_arguments(factory.deploy),
     )
+    print(f"[integration] contract {contract.address} for {site_url}")
+    return contract
 
 
 def _deploy(factory, account):
