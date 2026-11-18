@@ -12,7 +12,7 @@ export type ChainAddress = `0x${string}`;
  * app talks to a single fixed address instead of deploying a contract per case.
  * `gltest tests/integration --network studionet` prints the address it deploys.
  */
-export const REGISTRY_ADDRESS = '0x40C41c0E67Ae771A5A1BcDDD6e67C8C0cD08BfbF' as ChainAddress;
+export const REGISTRY_ADDRESS = '0x2936cf848dE46F49C4C3bD49e78F77FE8B4EF57b' as ChainAddress;
 
 /** Mirrors MAX_CASES in the contract, so the app can refuse before a doomed write. */
 export const MAX_REGISTRY_CASES = 500;

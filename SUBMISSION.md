@@ -115,11 +115,11 @@ On-chain behaviour:
 
 ## Live deployment
 
-One registry contract holds every case. Its address is the constant `REGISTRY_ADDRESS` in `src/lib/genlayer.ts`, and the integration suite deploys it and prints the address it used as `[integration] registry 0x…`. The run that produced the address below deployed, opened a case, read it back, tested the outsider rejection and the invalid specs.
+One registry contract holds every case. Its address is the constant `REGISTRY_ADDRESS` in `src/lib/genlayer.ts`, and the integration suite deploys it and prints the address it used as `[integration] registry 0x…`. The run that produced the address below deployed the registry, opened a case, read it back, tested the outsider rejection and the invalid specs, and then ran the full live evaluation: a real page render, a real LLM pass and validator agreement, with the result read back from `get_result`.
 
 | What | Value |
 | --- | --- |
-| Registry | [`0x40C41c0E67Ae771A5A1BcDDD6e67C8C0cD08BfbF`](https://explorer-studio.genlayer.com/address/0x40C41c0E67Ae771A5A1BcDDD6e67C8C0cD08BfbF) |
+| Registry | [`0x2936cf848dE46F49C4C3bD49e78F77FE8B4EF57b`](https://explorer-studio.genlayer.com/address/0x2936cf848dE46F49C4C3bD49e78F77FE8B4EF57b) |
 | Network | Studionet — `https://studio.genlayer.com/api` |
 | Explorer | `https://explorer-studio.genlayer.com/address/<address>` and `https://explorer-studio.genlayer.com/tx/<hash>` |
 | Gas | Studionet is gasless; neither wallet needs a GEN balance |

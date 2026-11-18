@@ -4,7 +4,7 @@
 
 SpecProof runs on **Studionet** as a single registry contract: the app calls `create_case` to open a case, only the wallet that opened it can run `evaluate`, and the browser reads every case and result straight from the chain.
 
-The registry is deployed at [`0x40C41c0E67Ae771A5A1BcDDD6e67C8C0cD08BfbF`](https://explorer-studio.genlayer.com/address/0x40C41c0E67Ae771A5A1BcDDD6e67C8C0cD08BfbF) on Studionet. Anyone can read it; a wallet is only needed to open a case or to evaluate one.
+The registry is deployed at [`0x2936cf848dE46F49C4C3bD49e78F77FE8B4EF57b`](https://explorer-studio.genlayer.com/address/0x2936cf848dE46F49C4C3bD49e78F77FE8B4EF57b) on Studionet. Anyone can read it; a wallet is only needed to open a case or to evaluate one. It already holds a case evaluated end to end (real page render, real LLM, real validator agreement).
 
 ---
 
@@ -12,7 +12,7 @@ The registry is deployed at [`0x40C41c0E67Ae771A5A1BcDDD6e67C8C0cD08BfbF`](https
 
 | Surface | What works today |
 | --- | --- |
-| Contract | One registry contract, linted with `genvm-lint`; 23 direct-mode tests; 4 Studionet integration tests with real wallets |
+| Contract | One registry contract, linted with `genvm-lint`; 23 direct-mode tests; 4 Studionet integration tests with real wallets, including a live page + LLM evaluation |
 | Frontend | React 18 + TypeScript + Vite; lists, opens and evaluates registry cases via `genlayer-js` |
 | CI | Contract lint, direct tests, frontend typecheck/build, manual Studionet suite, Vercel preview |
 | Hosting | Vercel-ready static build (`vercel.json`, `.nvmrc`, no environment variables) |
