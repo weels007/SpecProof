@@ -1,4 +1,1 @@
-Run 8: Studionet with the keystore wallets (loader aligned with Clause Guard).
-
-Bradbury Phase 2 publishes its node RPC per release, so the preset can point at
-a stale deployment; marker runs stay on Studionet.
+Run 9: fee arguments only when the pinned gltest accepts them; studionet run.

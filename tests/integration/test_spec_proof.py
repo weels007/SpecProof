@@ -18,6 +18,7 @@ undetermined when validators disagree.
 """
 
 import base64
+import inspect
 import json
 import os
 import re
@@ -151,6 +152,28 @@ def _fees() -> dict | None:
     return {"distribution": estimate["distribution"], "feeValue": estimate["feeValue"]}
 
 
+def _fee_arguments(callable_obj) -> dict:
+    """Only pass fees to gltest calls that accept them (v0.29 has no fee support)."""
+    if "fees" not in inspect.signature(callable_obj).parameters:
+        return {}
+
+    fees = _fees()
+    return {"fees": fees} if fees else {}
+
+
+def _deploy(factory, account):
+    return factory.deploy(
+        args=[SITE_URL, CRITERIA],
+        account=account,
+        **WAIT,
+        **_fee_arguments(factory.deploy),
+    )
+
+
+def _send(handle):
+    return handle.transact(**WAIT, **_fee_arguments(handle.transact))
+
+
 @pytest.fixture(scope="session")
 def test_wallets() -> tuple[LocalAccount, LocalAccount | None]:
     """Creator wallet plus an optional second wallet for the adversarial caller."""
@@ -181,7 +204,7 @@ def test_wallets() -> tuple[LocalAccount, LocalAccount | None]:
 def test_deploy_and_read_spec(test_wallets):
     creator, _ = test_wallets
     factory = get_contract_factory("SpecProof")
-    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator, fees=_fees(), **WAIT)
+    contract = _deploy(factory, creator)
 
     spec = json.loads(contract.get_spec().call())
 
@@ -198,9 +221,9 @@ def test_outsider_cannot_evaluate(test_wallets):
         pytest.skip("Set a second wallet (KEYSTORE_2 or ACCOUNT_PRIVATE_KEY_2)")
 
     factory = get_contract_factory("SpecProof")
-    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator, fees=_fees(), **WAIT)
+    contract = _deploy(factory, creator)
 
-    receipt = contract.connect(outsider).evaluate().transact(fees=_fees(), **WAIT)
+    receipt = _send(contract.connect(outsider).evaluate())
     assert tx_execution_failed(receipt)
 
     spec = json.loads(contract.get_spec().call())
@@ -214,9 +237,9 @@ def test_outsider_cannot_evaluate(test_wallets):
 def test_live_evaluation_records_outcome(test_wallets):
     creator, _ = test_wallets
     factory = get_contract_factory("SpecProof")
-    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator, fees=_fees(), **WAIT)
+    contract = _deploy(factory, creator)
 
-    first = contract.evaluate().transact(fees=_fees(), **WAIT)
+    first = _send(contract.evaluate())
     assert tx_execution_succeeded(first)
 
     result = json.loads(contract.get_result().call())
@@ -224,5 +247,5 @@ def test_live_evaluation_records_outcome(test_wallets):
     assert [check["id"] for check in result["checks"]] == ["C1", "C2"]
 
     # A recorded outcome cannot be evaluated a second time.
-    second = contract.evaluate().transact(fees=_fees(), **WAIT)
+    second = _send(contract.evaluate())
     assert tx_execution_failed(second)
