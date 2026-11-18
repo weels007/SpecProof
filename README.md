@@ -115,7 +115,9 @@ Tips for the keystore secret:
 
 Nothing else is required: the Bradbury RPC and chain id come from `gltest`, this contract's
 tests pass the decrypted account explicitly, and the network's own validators run the model — so
-no LLM or RPC keys are needed and `gltest.config.yaml` holds no wallet references.
+no LLM or RPC keys are needed and `gltest.config.yaml` holds no wallet references. On fee-charging
+networks the tests estimate a fee budget with `estimate_transaction_fees()`, so both wallets need
+enough testnet GEN for their transactions; Studio and localnet stay gasless.
 
 For a local funded run, fill `.env` (copied from `.env.example`; use `KEYSTORE_PATH_1` for a
 keystore file) and run:

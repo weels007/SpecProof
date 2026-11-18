@@ -67,6 +67,18 @@ def _wallet(label: str) -> LocalAccount | None:
     return _keystore_account(label) or _private_key_account(label)
 
 
+def _fees() -> dict | None:
+    """Fee budget for fee-charging networks; None on gasless Studio and localnet."""
+    from gltest.clients import get_gl_client
+
+    client = get_gl_client()
+    if not getattr(client.chain, "fee_manager_contract", None):
+        return None
+
+    estimate = client.estimate_transaction_fees()
+    return {"distribution": estimate["distribution"], "feeValue": estimate["feeValue"]}
+
+
 @pytest.fixture(scope="session")
 def test_wallets() -> tuple[LocalAccount, LocalAccount | None]:
     """Creator wallet plus an optional second wallet for the adversarial caller."""
@@ -95,7 +107,7 @@ def test_wallets() -> tuple[LocalAccount, LocalAccount | None]:
 def test_deploy_and_read_spec(test_wallets):
     creator, _ = test_wallets
     factory = get_contract_factory("SpecProof")
-    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator)
+    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator, fees=_fees())
 
     spec = json.loads(contract.get_spec().call())
 
@@ -112,9 +124,9 @@ def test_outsider_cannot_evaluate(test_wallets):
         pytest.skip("Set a second wallet (KEYSTORE_2 or ACCOUNT_PRIVATE_KEY_2)")
 
     factory = get_contract_factory("SpecProof")
-    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator)
+    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator, fees=_fees())
 
-    receipt = contract.connect(outsider).evaluate().transact()
+    receipt = contract.connect(outsider).evaluate().transact(fees=_fees())
     assert tx_execution_failed(receipt)
 
     spec = json.loads(contract.get_spec().call())
@@ -128,9 +140,9 @@ def test_outsider_cannot_evaluate(test_wallets):
 def test_live_evaluation_records_outcome(test_wallets):
     creator, _ = test_wallets
     factory = get_contract_factory("SpecProof")
-    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator)
+    contract = factory.deploy(args=[SITE_URL, CRITERIA], account=creator, fees=_fees())
 
-    first = contract.evaluate().transact()
+    first = contract.evaluate().transact(fees=_fees())
     assert tx_execution_succeeded(first)
 
     result = json.loads(contract.get_result().call())
@@ -138,5 +150,5 @@ def test_live_evaluation_records_outcome(test_wallets):
     assert [check["id"] for check in result["checks"]] == ["C1", "C2"]
 
     # A recorded outcome cannot be evaluated a second time.
-    second = contract.evaluate().transact()
+    second = contract.evaluate().transact(fees=_fees())
     assert tx_execution_failed(second)
