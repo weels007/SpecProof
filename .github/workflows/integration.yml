@@ -3,19 +3,12 @@ name: Integration (GenLayer)
 on:
   workflow_dispatch:
     inputs:
-      network:
-        description: GenLayer network
-        type: choice
-        options:
-          - studionet
-          - testnet_bradbury
-        default: studionet
       live_evaluation:
-        description: Run the real web + LLM evaluation
+        description: Also run the real web + LLM evaluation
         type: boolean
         default: false
-  # Marker runs use Studionet (hosted, gasless, same stack as the app's peers).
-  # Bradbury Phase 2 needs a qualified node RPC, so it stays a manual choice.
+  # Marker runs execute on Studionet: hosted, gasless, real wallets and real
+  # consensus. Edit .github/integration-request to trigger one.
   push:
     paths:
       - .github/integration-request
@@ -24,15 +17,15 @@ permissions:
   contents: read
 
 concurrency:
-  group: integration-${{ inputs.network || 'studionet' }}
+  group: integration-studionet
   cancel-in-progress: false
 
 jobs:
   integration:
-    name: Integration (${{ inputs.network || 'studionet' }})
+    name: Integration (studionet)
     runs-on: ubuntu-latest
     env:
-      NETWORK: ${{ inputs.network || 'studionet' }}
+      NETWORK: studionet
       KEYSTORE_1: ${{ secrets.KEYSTORE_1 }}
       KEYSTORE_PASSWORD_1: ${{ secrets.KEYSTORE_PASSWORD_1 }}
       KEYSTORE_2: ${{ secrets.KEYSTORE_2 }}
@@ -46,20 +39,6 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Check wallet secrets
-        if: env.NETWORK == 'testnet_bradbury'
-        run: |
-          has_keystore=0
-          if [ -n "${KEYSTORE_1}" ] && [ -n "${KEYSTORE_PASSWORD_1}" ]; then
-            has_keystore=1
-          fi
-          if [ -z "${ACCOUNT_PRIVATE_KEY_1}" ] && [ "${has_keystore}" -eq 0 ]; then
-            echo "Missing creator wallet: set KEYSTORE_1 + KEYSTORE_PASSWORD_1, or ACCOUNT_PRIVATE_KEY_1." >&2
-            exit 1
-          fi
-          if [ -z "${ACCOUNT_PRIVATE_KEY_2}" ] && { [ -z "${KEYSTORE_2}" ] || [ -z "${KEYSTORE_PASSWORD_2}" ]; }; then
-            echo "Second wallet is not set; the outsider test will be skipped."
-          fi
       - name: Install GenLayer tooling
         run: pip install -r requirements.txt
       - name: Run integration tests

@@ -1,14 +1,12 @@
 networks:
-  default: localnet
+  default: studionet
 
   localnet:
     url: "http://127.0.0.1:4000/api"
 
-  studionet: {}
-
   # Wallets come from the test process (KEYSTORE_1 / ACCOUNT_PRIVATE_KEY_1),
   # never from this file, so plain pytest and CI need no secrets.
-  testnet_bradbury: {}
+  studionet: {}
 
 paths:
   contracts: "contracts"

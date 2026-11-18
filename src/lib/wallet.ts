@@ -36,13 +36,17 @@ const CHAIN_NAMES: Record<number, string> = {
   1: 'Ethereum',
   10: 'Optimism',
   137: 'Polygon',
+  4221: 'Bradbury',
   8453: 'Base',
   42161: 'Arbitrum',
   11155111: 'Sepolia',
+  61127: 'Localnet',
+  61997: 'Studio dev',
+  61999: 'Studionet',
 };
 
 export function chainLabel(chainId: string | null): string {
-  if (!chainId) return 'Bradbury testnet';
+  if (!chainId) return 'Studionet';
   const parsed = Number.parseInt(chainId, 16);
   return CHAIN_NAMES[parsed] ?? `Chain ${parsed}`;
 }
@@ -71,7 +75,7 @@ export function walletSubtitle(wallet: WalletLike & { chainId: string | null }):
   if (wallet.status === 'connecting') return 'Confirm in your wallet';
   if (wallet.isDemo) return 'No wallet, no transactions';
   if (wallet.status === 'connected') return chainLabel(wallet.chainId);
-  return 'Bradbury testnet';
+  return 'Studionet';
 }
 
 /** Maps EIP-1193 errors onto messages a person can act on. */

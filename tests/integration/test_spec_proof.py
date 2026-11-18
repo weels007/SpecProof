@@ -1,20 +1,13 @@
-"""Integration tests against a real GenLayer network and real wallets.
-
-Studio (no wallet needed):
+"""Integration tests on Studionet with real wallets.
 
     gltest tests/integration -v --network studionet
 
-Bradbury testnet, with an encrypted keystore (recommended) or a raw key:
-
-    KEYSTORE_1='{"version":3,...}' KEYSTORE_PASSWORD_1='...' \
-      gltest tests/integration -v --network testnet_bradbury
-
-A session wallet is resolved in this order: keystore, raw private key, then the
-network's configured accounts (what Studio and localnet use).
+A wallet is resolved from KEYSTORE_<label> (+ KEYSTORE_PASSWORD_<label>), or
+from ACCOUNT_PRIVATE_KEY_<label>; without either, the network's configured
+accounts are used. Studionet is gasless.
 
 The live evaluation (real web render + real validators) only runs when
-`SPECPROOF_LIVE_EVALUATION=1`, because it costs fees and can legitimately end
-undetermined when validators disagree.
+`SPECPROOF_LIVE_EVALUATION=1`, because it depends on validator agreement.
 """
 
 import base64
@@ -40,7 +33,7 @@ CRITERIA = "\n".join(
     ]
 )
 
-# Bradbury consensus can take a while; give each receipt up to ~4 minutes.
+# Studionet consensus can take a while; give each receipt up to ~4 minutes.
 WAIT = {"wait_interval": 2000, "wait_retries": 120}
 
 
@@ -192,7 +185,7 @@ def test_wallets() -> tuple[LocalAccount, LocalAccount | None]:
         except Exception:
             pytest.skip(
                 "Set KEYSTORE_1 + KEYSTORE_PASSWORD_1 (or ACCOUNT_PRIVATE_KEY_1) "
-                "to run against Bradbury. Studio and localnet use their own accounts."
+                "to use the configured wallets, or run on studionet."
             )
 
         if outsider is None and len(network_accounts) > 1:

@@ -83,62 +83,43 @@ and disagreement. `tests/integration` runs against a real network and is not par
 gltest tests/integration -v --network studionet
 ```
 
-## Funded integration test (real wallet)
+## Integration test on Studionet (real wallets)
 
 `tests/integration` deploys the contract with a real wallet and checks the creator-only guard
-with a second wallet. Push CI stays fast; the **Integration (GenLayer)** workflow runs this on
-demand from the Actions tab, and marker pushes run it on Studionet (hosted, gasless, real wallets
-and real consensus).
+with a second wallet on **Studionet** — hosted, gasless, with real wallets and real consensus.
+Push CI stays fast; the **Integration (GenLayer)** workflow runs it, and a push that edits
+`.github/integration-request` triggers it automatically.
 
-Bradbury Phase 2 publishes its GenLayer node RPC per release announcement, so the SDK preset can
-point at a previous deployment — the run then fails with `BadFunctionCallOutput` before any
-contract call. Keep Bradbury as a manual option once a qualified Phase 2 node RPC is configured.
+Wallets come from repository secrets (Settings → Secrets and variables → Actions):
 
-An encrypted keystore is supported first: the test decrypts it in memory with `eth_account`, so
-no plaintext key has to exist anywhere. Repository secrets (Settings → Secrets and variables →
-Actions):
-
-- `KEYSTORE_1` — the creator wallet's keystore JSON (Web3 v3, the format `genlayer account
-  export` and MetaMask export produce). Needs testnet GEN on Bradbury for the deploy and the
-  evaluation transaction.
+- `KEYSTORE_1` — the creator wallet's keystore JSON (Web3 v3).
 - `KEYSTORE_PASSWORD_1` — the password for `KEYSTORE_1`.
-- `KEYSTORE_2` / `KEYSTORE_PASSWORD_2` — optional second wallet used as the adversarial caller. It
-  only needs enough GEN to send one reverting transaction. Without it, the outsider test is
-  skipped.
+- `KEYSTORE_2` / `KEYSTORE_PASSWORD_2` — optional second wallet used as the adversarial caller.
+  Without it, the outsider test is skipped.
 
 Plaintext keys still work if you prefer them: `ACCOUNT_PRIVATE_KEY_1` (and optionally
 `ACCOUNT_PRIVATE_KEY_2`) instead of the keystore pair.
 
-Tips for the keystore secret:
+Keystore notes:
 
-- Paste the JSON itself, not a path and not a quoted string. A single-line copy is easiest:
-  `jq -c . keystore.json`.
+- The secret holds the JSON itself, not a path and not a quoted string; a base64 copy is also
+  accepted. A single-line copy is easiest: `jq -c . keystore.json`.
 - Keep the password in its own secret, never inside the JSON secret.
-- If the keystore password is lost, set `ACCOUNT_PRIVATE_KEY_1` (and `_2`) instead: when a keystore
-  cannot be unlocked, the test falls back to the plaintext key so a stale keystore does not block
-  the run. Both wallets still need testnet GEN.
-- Keystore and password together control the wallet, exactly like a private key. Use a throwaway
-  wallet funded only with testnet GEN, never one with mainnet funds.
+- The test decrypts in memory with `Account.decrypt(...)` and never writes the keystore to disk.
+  If a keystore cannot be unlocked, `ACCOUNT_PRIVATE_KEY_n` is used when present.
 - Never commit the keystore, paste it into a chat, or put it in `.env.example`.
 
-Nothing else is required: the Bradbury RPC and chain id come from `gltest`, this contract's
-tests pass the decrypted account explicitly, and the network's own validators run the model — so
-no LLM or RPC keys are needed and `gltest.config.yaml` holds no wallet references. On fee-charging
-networks the tests estimate a fee budget with `estimate_transaction_fees()`, so both wallets need
-enough testnet GEN for their transactions; Studio and localnet stay gasless.
-
-For a local funded run, fill `.env` (copied from `.env.example`; use `KEYSTORE_PATH_1` for a
-keystore file) and run:
+Studionet is gasless, so neither wallet needs a GEN balance. For a local run, fill `.env` (copied
+from `.env.example`; `KEYSTORE_PATH_1` is handy locally) and run:
 
 ```bash
-gltest tests/integration -v --network testnet_bradbury
+gltest tests/integration -v --network studionet
 ```
 
-`SPECPROOF_LIVE_EVALUATION=1` (a variable, not a secret) additionally runs a real web + LLM
-evaluation, which costs fees and depends on validator agreement.
+`SPECPROOF_LIVE_EVALUATION=1` additionally runs a real web + LLM evaluation, which depends on
+validator agreement.
 
-SpecProof itself is not payable and holds no funds, so there is no escrow to drain or lock here —
-the only cost of an adversarial run is gas.
+SpecProof itself is not payable and holds no funds, so there is nothing to drain or lock here.
 
 ## Continuous integration
 
