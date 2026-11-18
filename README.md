@@ -87,7 +87,12 @@ gltest tests/integration -v --network studionet
 
 `tests/integration` deploys the contract with a real wallet and checks the creator-only guard
 with a second wallet. Push CI stays fast; the **Integration (GenLayer)** workflow runs this on
-demand from the Actions tab.
+demand from the Actions tab, and marker pushes run it on Studionet (hosted, gasless, real wallets
+and real consensus).
+
+Bradbury Phase 2 publishes its GenLayer node RPC per release announcement, so the SDK preset can
+point at a previous deployment — the run then fails with `BadFunctionCallOutput` before any
+contract call. Keep Bradbury as a manual option once a qualified Phase 2 node RPC is configured.
 
 An encrypted keystore is supported first: the test decrypts it in memory with `eth_account`, so
 no plaintext key has to exist anywhere. Repository secrets (Settings → Secrets and variables →

@@ -11,10 +11,11 @@ on:
           - testnet_bradbury
         default: studionet
       live_evaluation:
-        description: Run the real web + LLM evaluation (costs testnet fees)
+        description: Run the real web + LLM evaluation
         type: boolean
         default: false
-  # Push an edit to this marker file to re-run the funded Bradbury suite.
+  # Marker runs use Studionet (hosted, gasless, same stack as the app's peers).
+  # Bradbury Phase 2 needs a qualified node RPC, so it stays a manual choice.
   push:
     paths:
       - .github/integration-request
@@ -23,15 +24,15 @@ permissions:
   contents: read
 
 concurrency:
-  group: integration-${{ inputs.network || 'testnet_bradbury' }}
+  group: integration-${{ inputs.network || 'studionet' }}
   cancel-in-progress: false
 
 jobs:
   integration:
-    name: Integration (${{ inputs.network || 'testnet_bradbury' }})
+    name: Integration (${{ inputs.network || 'studionet' }})
     runs-on: ubuntu-latest
     env:
-      NETWORK: ${{ inputs.network || 'testnet_bradbury' }}
+      NETWORK: ${{ inputs.network || 'studionet' }}
       KEYSTORE_1: ${{ secrets.KEYSTORE_1 }}
       KEYSTORE_PASSWORD_1: ${{ secrets.KEYSTORE_PASSWORD_1 }}
       KEYSTORE_2: ${{ secrets.KEYSTORE_2 }}

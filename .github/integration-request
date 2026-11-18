@@ -1,7 +1,4 @@
-Funded Bradbury run requested for SpecProof.
+Run 8: Studionet with the keystore wallets (loader aligned with Clause Guard).
 
-Editing or re-pushing this file triggers the Integration (GenLayer) workflow
-against testnet_bradbury with the repository wallets. The run deploys the
-contract twice and sends one reverting transaction from the outsider wallet.
-
-Run 7: loader aligned with the Clause Guard wallet loader (dict decrypt, base64, inner error).
+Bradbury Phase 2 publishes its node RPC per release, so the preset can point at
+a stale deployment; marker runs stay on Studionet.
