@@ -46,7 +46,7 @@ def _keystore_account(label: str) -> LocalAccount | None:
     """Decrypt KEYSTORE_<label> (or the file in KEYSTORE_PATH_<label>)."""
     raw = os.environ.get(f"KEYSTORE_{label}", "").strip()
     path = os.environ.get(f"KEYSTORE_PATH_{label}", "").strip()
-    password = os.environ.get(f"KEYSTORE_PASSWORD_{label}", "").strip()
+    password = os.environ.get(f"KEYSTORE_PASSWORD_{label}", "")
 
     if not raw and path:
         raw = Path(path).read_text().strip()
@@ -73,17 +73,32 @@ def _keystore_account(label: str) -> LocalAccount | None:
             "(it has no \"crypto\" field)."
         )
 
-    if not password:
+    address = payload.get("address", "unknown address")
+    version = payload.get("version", "?")
+    crypto = payload.get("crypto") or payload.get("Crypto") or {}
+    kdf = crypto.get("kdf", "?")
+
+    # Passwords are compared byte for byte: try the value as stored, then
+    # without the trailing newline a paste can add.
+    candidates = [password]
+    trimmed = password.strip()
+    if trimmed and trimmed != password:
+        candidates.append(trimmed)
+    if not any(candidates):
         raise RuntimeError(f"KEYSTORE_PASSWORD_{label} is empty.")
 
-    try:
-        return Account.from_keystore(text, password)
-    except Exception as error:
-        raise RuntimeError(
-            f"Could not unlock KEYSTORE_{label}. Check that KEYSTORE_PASSWORD_{label} "
-            "is the password that keystore was exported with (no quotes, no trailing "
-            "newline) and that both secrets belong to the same wallet."
-        ) from error
+    for candidate in candidates:
+        try:
+            return Account.from_keystore(text, candidate)
+        except Exception:
+            continue
+
+    raise RuntimeError(
+        f"Could not unlock KEYSTORE_{label} (wallet {address}, keystore v{version}, "
+        f"kdf {kdf}). Neither the stored password nor its trimmed form matched. "
+        f"Make sure KEYSTORE_PASSWORD_{label} is the password this keystore was "
+        "exported with, and that the secret has no surrounding quotes."
+    )
 
 
 def _private_key_account(label: str) -> LocalAccount | None:
