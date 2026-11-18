@@ -138,6 +138,9 @@ class SpecProof(gl.Contract):
     total_cases: u256
     records: TreeMap[str, str]
 
+    def __init__(self):
+        self.total_cases = u256(0)
+
     def _read_record(self, case_id: str) -> str:
         raw = self.records.get(str(case_id).strip(), "")
         if not raw:

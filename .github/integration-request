@@ -1,1 +1,1 @@
-Run 17: deploy the registry contract and print its address for the frontend.
+Run 18: deploy the registry with an explicit __init__ and print its address.
