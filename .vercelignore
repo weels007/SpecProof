@@ -1,0 +1,10 @@
+# Not needed to build the site; keeps the upload small.
+.github
+tests
+requirements.txt
+pyproject.toml
+gltest.config.yaml
+.env.example
+.env
+__pycache__
+*.pyc

@@ -14,3 +14,6 @@ __pycache__/
 # Test caches and generated artifacts
 .pytest_cache/
 artifacts/
+
+# Vercel CLI metadata
+.vercel/

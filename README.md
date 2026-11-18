@@ -54,6 +54,26 @@ The dashboard talks to the contract on Studionet through `genlayer-js`:
 - Every on-chain case links to its contract, deployment transaction and evaluation transaction in
   the Studio explorer; consensus timeouts show a clear message instead of hanging.
 
+## Deploy on Vercel
+
+The repository is ready for Vercel as a static Vite site:
+
+1. **Add New → Project** in Vercel and import this repository.
+2. Keep the detected settings: framework **Vite**, install `npm install`, build `npm run build`,
+   output `dist` (also pinned in `vercel.json`). Node 22 comes from `.nvmrc`.
+3. **No environment variables are required.** The Studionet RPC is public, and every case keeps
+   its own contract address in the visitor's browser.
+
+Notes:
+
+- Routes are hash based (`/#/workspace`), so no SPA rewrite is needed and deep links work on a
+  static host.
+- `contracts/spec_proof.py` is bundled at build time (`?raw`) so the browser can deploy a case;
+  it must stay in the upload, which is why `.vercelignore` does not exclude `contracts/`.
+- The on-chain flow needs an HTTPS origin (Vercel provides one) and a browser with an injected
+  wallet. Without a wallet the app still runs: reads work and drafts stay local.
+- `genlayer-js` is bundled by Vite; there is no API route, database or server to configure.
+
 ## Contract
 
 `contracts/spec_proof.py` stores a public URL and a newline-separated rubric, renders the page
