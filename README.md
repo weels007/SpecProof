@@ -109,6 +109,9 @@ Tips for the keystore secret:
 - Paste the JSON itself, not a path and not a quoted string. A single-line copy is easiest:
   `jq -c . keystore.json`.
 - Keep the password in its own secret, never inside the JSON secret.
+- If the keystore password is lost, set `ACCOUNT_PRIVATE_KEY_1` (and `_2`) instead: when a keystore
+  cannot be unlocked, the test falls back to the plaintext key so a stale keystore does not block
+  the run. Both wallets still need testnet GEN.
 - Keystore and password together control the wallet, exactly like a private key. Use a throwaway
   wallet funded only with testnet GEN, never one with mainnet funds.
 - Never commit the keystore, paste it into a chat, or put it in `.env.example`.

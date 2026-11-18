@@ -107,7 +107,24 @@ def _private_key_account(label: str) -> LocalAccount | None:
 
 
 def _wallet(label: str) -> LocalAccount | None:
-    return _keystore_account(label) or _private_key_account(label)
+    """Keystore first, then a private key; a broken keystore does not block the key."""
+    keystore_error: RuntimeError | None = None
+    try:
+        account = _keystore_account(label)
+    except RuntimeError as error:
+        account = None
+        keystore_error = error
+
+    if account is not None:
+        return account
+
+    account = _private_key_account(label)
+    if account is not None:
+        return account
+
+    if keystore_error is not None:
+        raise keystore_error
+    return None
 
 
 def _fees() -> dict | None:
@@ -127,6 +144,8 @@ def test_wallets() -> tuple[LocalAccount, LocalAccount | None]:
     """Creator wallet plus an optional second wallet for the adversarial caller."""
     creator = _wallet("1")
     outsider = _wallet("2")
+    print(f"[integration] creator wallet: {creator.address if creator else 'none'}")
+    print(f"[integration] outsider wallet: {outsider.address if outsider else 'none'}")
 
     if creator is None:
         # Studio and localnet bring their own configured accounts.
