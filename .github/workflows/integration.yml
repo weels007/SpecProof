@@ -55,4 +55,8 @@ jobs:
       # -s keeps the printed wallet and contract addresses in the log, so a
       # fresh Studionet deployment can be quoted in SUBMISSION.md.
       - name: Run integration tests
-        run: gltest tests/integration -s -v --network "$NETWORK"
+        run: |
+          set -o pipefail
+          gltest tests/integration -s -v --network "$NETWORK" | tee /tmp/integration.log
+          echo "---"
+          grep -o '\[integration\] registry 0x[0-9a-fA-F]*' /tmp/integration.log | tail -n 1 || true

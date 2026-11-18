@@ -1,1 +1,1 @@
-Run 20: retry invalid create_case checks past a 502 and print the registry address.
+Run 21: print the registry address as the last line of the step.
