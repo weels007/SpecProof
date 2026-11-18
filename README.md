@@ -8,8 +8,6 @@ The registry is deployed at [`0x40C41c0E67Ae771A5A1BcDDD6e67C8C0cD08BfbF`](https
 
 ---
 
-
-
 ## Status
 
 | Surface | What works today |
