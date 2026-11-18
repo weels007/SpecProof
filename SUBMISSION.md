@@ -113,6 +113,99 @@ On-chain behaviour:
 
 ---
 
+## How to use the app, start to finish
+
+The app is a static site: any modern browser with an injected wallet works and nothing needs to be
+installed. Locally it is `npm install && npm run dev`; on a host it is the deployment URL. Both serve
+the same build.
+
+**1. Open the app.**
+The landing page is `#/`. **Open the workspace** (or **Overview** in the sidebar) leads to
+`#/workspace`, which shows the registry count, recent cases and the decision path.
+
+**2. Connect a wallet.**
+Click the wallet button at the top right (**Connect wallet**) and approve in MetaMask, Rabby or
+Coinbase Wallet. The app switches the wallet to **Studionet** itself, adding the chain if it is
+missing. Studionet is gasless, so no GEN balance is required.
+
+- Reading needs no wallet: the list, every case and every result are public views.
+- **Use a demo session** only explores the interface; it cannot write anything.
+
+**3. Open a case.**
+Click **+ New evaluation** (sidebar, top bar, or the button on the Evaluations page). The dialog asks
+for:
+
+- **Case name** — up to 80 characters; if left empty the app derives one from the site host.
+- **Public website URL** — HTTP(S) on a public host. Localhost, private ranges, credentials and spaces
+  are refused.
+- **Acceptance criteria** — 1 to 6 lines, 180 characters each and 1200 in total, no duplicates.
+  `Enter` adds the next row.
+
+The same rules are checked twice: in the form, and again by the contract.
+
+**4. Sign `create_case`.**
+Press **Open case on Studionet ↗** and confirm in the wallet. The button reads **Waiting for
+consensus…** until the transaction is accepted (seconds to about a minute). On success the case gets an
+id (`#1`, `#2`, …), appears in the registry for everyone, and the detail dialog opens on it.
+
+**5. Read the case before evaluating.**
+The dialog shows the URL, the wallet that opened it, the registry case id, the status **Waiting for
+evaluation**, and the criteria as stored. The **AI CONSENSUS** panel lists the four steps the contract
+will run and is marked **Not run yet**.
+
+**6. Run the evaluation.**
+Only the wallet that opened the case sees **Evaluate on Studionet ↗**. Press it and sign. The button
+reads **Waiting for consensus…** while the contract:
+
+1. renders the page itself (`gl.nondet.web.render`);
+2. runs one LLM pass per criterion inside the non-deterministic block;
+3. has independent validators repeat the read and compare every boolean;
+4. writes the result once — or writes nothing if they disagree.
+
+This is the slow step: in practice a minute or two — the four-test integration suite, which includes a
+full live evaluation, finishes in about two minutes — and the client waits up to ten before it gives up.
+
+**7. Read the final result.**
+When the transaction is accepted the dialog refreshes itself:
+
+- the status becomes **Recorded on Studionet** and the score shows `passed/total`;
+- a verdict line reads **Every agreed criterion was met.** or **N of M criteria were met.**;
+- each criterion gets a ✓ or × with *"Validators agreed this criterion is met / is not met."*;
+- the AI CONSENSUS panel switches to **Agreed and recorded**;
+- **Evaluation tx ↗** appears for the transaction just signed, and **Registry on explorer ↗** opens the
+  contract on the Studio explorer.
+
+**8. Verify it independently.**
+`get_case` and `get_result` are public views, so the same result can be read without the app: open the
+registry address on `https://explorer-studio.genlayer.com`, or run the integration suite. **Refresh**
+in the dialog re-reads the contract and shows the record comes from chain, not from the browser.
+
+**9. Browse and filter.**
+The Evaluations page (`#/evaluations`) lists the newest 50 cases with counts from `case_count`:
+
+- **All cases** — everything in the registry;
+- **My cases** — only the cases opened by the connected wallet;
+- **Pending** — cases without a recorded result yet;
+- search matches name, URL, creator address and criteria.
+
+### What can go wrong, and what it means
+
+| Message | Meaning |
+| --- | --- |
+| **Transaction rejected in the wallet.** | The signature was declined; nothing was written, try again. |
+| **This wallet does not support the request.** | The wallet refused the chain switch; switch to Studionet manually and retry. |
+| **Validators did not reach consensus, so nothing was written. You can retry.** | The evaluation was undetermined; the case is still pending and untouched. |
+| **This case is already evaluated; a result can only be written once.** | One outcome per case, by design. |
+| **Only the wallet that opened this case can evaluate it.** | A different account is connected. |
+| **That website URL cannot be checked.** | Private host, credentials, spaces, or a non-HTTP scheme. |
+| **The registry is full (500 cases), so no new case can be opened.** | The contract cap; the registry needs a redeploy. |
+| **The registry contract did not answer on Studionet.** | The node reset and the contract is gone; redeploy and update `REGISTRY_ADDRESS`. |
+
+What is deliberately not shown: the model's written reasoning. Validators agree on booleans, so only
+ids and booleans are stored — free text could not be verified by consensus and would weaken the record.
+
+---
+
 ## Live deployment
 
 One registry contract holds every case. Its address is the constant `REGISTRY_ADDRESS` in `src/lib/genlayer.ts`, and the integration suite deploys it and prints the address it used as `[integration] registry 0x…`. The run that produced the address below deployed the registry, opened a case, read it back, tested the outsider rejection and the invalid specs, and then ran the full live evaluation: a real page render, a real LLM pass and validator agreement, with the result read back from `get_result`.
@@ -151,7 +244,8 @@ SPECPROOF_LIVE_EVALUATION=1 gltest tests/integration -v --network studionet
 npm install && npm run typecheck && npm run build
 ```
 
-Then open the app, connect a wallet, open a case on a public URL and evaluate it with the same wallet. Studionet is gasless, so neither wallet needs a GEN balance.
+Then follow **How to use the app, start to finish** above: connect a wallet, open a case on a public URL
+and evaluate it with the same wallet. Studionet is gasless, so neither wallet needs a GEN balance.
 
 ---
 
